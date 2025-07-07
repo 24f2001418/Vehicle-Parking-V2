@@ -11,9 +11,10 @@ class User(db.Model):
     full_name = db.Column(db.String(100), nullable=False)
     email     = db.Column(db.String(120), unique=True, nullable=False)
     password  = db.Column(db.String(200), nullable=False)   # store the HASH!
-    qualification = db.Column(db.String(120))
-    dob       = db.Column(db.Date)
-    role      = db.Column(db.String(20), default='user', nullable=False)  # 'admin' | 'user'
+    qualification = db.Column(db.String(120), )  
+    dob       = db.Column(db.Date, ) 
+    role      = db.Column(db.String(20), default='user', nullable=False) 
+    is_active   = db.Column(db.Boolean, default=True) # 'admin' | 'user'
 
     scores = db.relationship('Score', backref='user', lazy=True)
 
@@ -54,7 +55,7 @@ class Chapter(db.Model):
     __tablename__ = 'chapter'
 
     id          = db.Column(db.Integer, primary_key=True)
-    subject_id  = db.Column(db.Integer, db.ForeignKey('subject.id'), nullable=False)
+    subject_id  = db.Column(db.Integer, db.ForeignKey('subject.id', ondelete='CASCADE'), nullable=False)
     name        = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
 
@@ -77,7 +78,7 @@ class Quiz(db.Model):
     __tablename__ = 'quiz'
 
     id            = db.Column(db.Integer, primary_key=True)
-    chapter_id    = db.Column(db.Integer, db.ForeignKey('chapter.id'), nullable=False)
+    chapter_id    = db.Column(db.Integer, db.ForeignKey('chapter.id', ondelete='CASCADE'), nullable=False)
     title         = db.Column(db.String(150))
     date_of_quiz  = db.Column(db.Date)        # optional scheduling
     time_duration = db.Column(db.String(8))   # "HH:MM"
@@ -111,7 +112,7 @@ class Question(db.Model):
     __tablename__ = 'question'
 
     id                 = db.Column(db.Integer, primary_key=True)
-    quiz_id            = db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
+    quiz_id            = db.Column(db.Integer, db.ForeignKey('quiz.id', ondelete='CASCADE'), nullable=False)
     question_statement = db.Column(db.Text, nullable=False)
     option1            = db.Column(db.String(250))
     option2            = db.Column(db.String(250))
@@ -135,8 +136,8 @@ class Score(db.Model):
     __tablename__ = 'score'
 
     id        = db.Column(db.Integer, primary_key=True)
-    quiz_id   = db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
-    user_id   = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    quiz_id   = db.Column(db.Integer, db.ForeignKey('quiz.id', ondelete='CASCADE'), nullable=False)
+    user_id   = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     attempted_at = db.Column(db.DateTime, default=datetime.utcnow)
     total_score  = db.Column(db.Integer, nullable=False)
     remarks      = db.Column(db.String(255))

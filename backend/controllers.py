@@ -1,125 +1,143 @@
+# controllers.py
 from datetime import datetime
-from flask import request, jsonify
+from flask import request
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import (
-    create_access_token, get_jwt, get_jwt_identity, jwt_required
+    create_access_token, get_jwt, get_jwt_identity,
+    jwt_required, verify_jwt_in_request
 )
 from werkzeug.security import check_password_hash, generate_password_hash
+from datetime import datetime
 
 from models import db, User, Subject, Chapter, Quiz, Question, Score
 
+# ─────────────────────────────────────────────────────────────────── #
+#  Helpers                                                            #
+# ------------------------------------------------------------------- #
 def is_admin():
-    identity = get_jwt()
-    if identity.get("role") != "admin":
-        return jsonify({"msg": "Admin privileges required"}), 403
+    identity = get_jwt_identity()
+    user = User.query.filter_by(email=identity).first()
+    return bool(user and user.role == 'admin')
 
-class LoginResource(Resource):
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("email",    required=True, help="Email required")
-        parser.add_argument("password", required=True, help="Password required")
-        args = parser.parse_args()
 
-        user = User.query.filter_by(email=args.email.lower()).first()
-        if not user or not check_password_hash(user.password, args.password):
-            return {"msg": "Invalid credentials"}, 401
-        access_token = create_access_token(
-            identity=user.id,
-            additional_claims={"role": user.role, "email": user.email}
-        )
-
-        return {
-            "msg": "Logged in",
-            "access_token": access_token,
-            "user": user.to_dict(),     
-            "role": user.role,
-        }, 200
-
+# ─────────────────────────────────────────────────────────────────── #
+#  Authentication                                                     #
+# ------------------------------------------------------------------- #
 class RegisterResource(Resource):
     def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("full_name",    required=True)
-        parser.add_argument("email",        required=True)
-        parser.add_argument("password",     required=True)
-        parser.add_argument("qualification")
-        parser.add_argument("dob")  
-        args = parser.parse_args()
+        data = request.get_json() or {}
+        full_name = data.get("full_name")
+        email     = data.get("email")
+        password  = data.get("password")
 
-        if User.query.filter_by(email=args.email.lower()).first():
+        if not all([full_name, email, password]):
+            return {"msg": "Missing required fields"}, 400
+
+        if User.query.filter_by(email=email.lower()).first():
             return {"msg": "User already exists"}, 409
 
-        hashed_pw = generate_password_hash(args.password)  # PBKDF2‑sha256 default
-
         user = User(
-            full_name=args.full_name,
-            email=args.email.lower(),
-            password=hashed_pw,
-            qualification=args.qualification,
-            dob=datetime.fromisoformat(args.dob).date() if args.dob else None,
+            full_name=full_name,
+            email=email.lower(),
+            password=generate_password_hash(password),
             role="user",
+            qualification=data.get("qualification"),
+            dob=datetime.fromisoformat(data["dob"]).date() if data.get("dob") else None,
         )
         db.session.add(user); db.session.commit()
 
-        access_token = create_access_token(
-            identity=user.id,
-            additional_claims={"role": "user", "email": user.email}
+        token = create_access_token(
+            identity=user.email,            # ← email as identity
+            additional_claims={"role": user.role}
         )
 
         return {
-            "msg": "Registration successful",
-            "access_token": access_token,
+            "msg":  "Registration successful",
+            "token": token,
             "user": user.to_dict(),
-            "role": "user",
         }, 201
 
-class SubjectResource(Resource):
+
+class LoginResource(Resource):
+    def post(self):
+        data = request.get_json() or {}
+        email, password = data.get("email"), data.get("password")
+
+        if not (email and password):
+            return {"msg": "Missing credentials"}, 400
+
+        user = User.query.filter_by(email=email.lower()).first()
+        if not user or not check_password_hash(user.password, password):
+            return {"msg": "Invalid credentials"}, 401
+
+        token = create_access_token(
+            identity=user.email,
+            additional_claims={"role": user.role}
+        )
+        return {
+            "msg":   "Logged in",
+            "token": token,
+            "user":  user.to_dict(),
+        }, 200
+
+
+# ─────────────────────────────────────────────────────────────────── #
+#  Subject CRUD                                                       #
+# ------------------------------------------------------------------- #
+class SubjectListResource(Resource):
     @jwt_required(optional=True)
-    def get(self, subject_id=None):
-        if subject_id:
-            s = Subject.query.get_or_404(subject_id)
-            return {"subject": s.to_dict()}
+    def get(self):
         return {"subjects": [s.to_dict() for s in Subject.query.all()]}
 
     @jwt_required()
     def post(self):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
-
-        data = request.get_json()
+            return {"msg": "Admin privileges required"}, 403
+        data = request.get_json() or {}
         if not data.get("name"):
             return {"msg": "Missing field 'name'"}, 400
-
         subj = Subject(name=data["name"], description=data.get("description"))
-        db.session.add(subj)
-        db.session.commit()
+        db.session.add(subj); db.session.commit()
         return {"msg": "Subject created", "subject": subj.to_dict()}, 201
+
+
+class SubjectResource(Resource):
+    @jwt_required(optional=True)
+    def get(self, subject_id):
+        s = Subject.query.get_or_404(subject_id)
+        return {"subject": s.to_dict()}
 
     @jwt_required()
     def put(self, subject_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
+            return {"msg": "Admin privileges required"}, 403
         subj = Subject.query.get_or_404(subject_id)
-
-        data = request.get_json()
+        data = request.get_json() or {}
         subj.name        = data.get("name", subj.name)
         subj.description = data.get("description", subj.description)
         db.session.commit()
-        return {"msg": "Subject updated", "subject": subj.to_dict()}, 200
+        return {"msg": "Subject updated", "subject": subj.to_dict()}
 
     @jwt_required()
     def delete(self, subject_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
+            return {"msg": "Admin privileges required"}, 403
         subj = Subject.query.get_or_404(subject_id)
-        # Optional safety: block delete if chapters exist
         if subj.chapters:
-            return {"msg": "Subject has chapters; delete them first."}, 400
+            for chapter in subj.chapters:
+                for quiz in chapter.quizzes:
+                    for score in quiz.scores:
+                        db.session.delete(score)
+                    db.session.delete(quiz)     
+                db.session.delete(chapter)
         db.session.delete(subj)
         db.session.commit()
-        return {"msg": "Subject deleted"}, 200
+        return {"msg": "Subject deleted"}
 
-#  CHAPTERS (CRUD)
-#  Routes →  /api/subjects/<int:subject_id>/chapters  &  /api/chapters/<id>
+
+# ─────────────────────────────────────────────────────────────────── #
+#  Chapter CRUD (under a subject)                                     #
+# ------------------------------------------------------------------- #
 class ChapterListResource(Resource):
     @jwt_required(optional=True)
     def get(self, subject_id):
@@ -129,8 +147,8 @@ class ChapterListResource(Resource):
     @jwt_required()
     def post(self, subject_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
-        data = request.get_json()
+            return {"msg": "Admin privileges required"}, 403
+        data = request.get_json() or {}
         if not data.get("name"):
             return {"msg": "Missing field 'name'"}, 400
         chap = Chapter(
@@ -141,6 +159,7 @@ class ChapterListResource(Resource):
         db.session.add(chap); db.session.commit()
         return {"msg": "Chapter created", "chapter": chap.to_dict()}, 201
 
+
 class ChapterResource(Resource):
     @jwt_required(optional=True)
     def get(self, chapter_id):
@@ -150,9 +169,9 @@ class ChapterResource(Resource):
     @jwt_required()
     def put(self, chapter_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
+            return {"msg": "Admin privileges required"}, 403
         chap = Chapter.query.get_or_404(chapter_id)
-        data = request.get_json()
+        data = request.get_json() or {}
         chap.name        = data.get("name", chap.name)
         chap.description = data.get("description", chap.description)
         db.session.commit()
@@ -161,15 +180,20 @@ class ChapterResource(Resource):
     @jwt_required()
     def delete(self, chapter_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
+            return {"msg": "Admin privileges required"}, 403
         chap = Chapter.query.get_or_404(chapter_id)
-        if chap.quizzes:
-            return {"msg": "Chapter has quizzes; delete them first."}, 400
-        db.session.delete(chap); db.session.commit()
+        for quiz in chap.quizzes:
+            for score in quiz.scores:
+                db.session.delete(score)
+            db.session.delete(quiz)
+        db.session.delete(chap)
+        db.session.commit()
         return {"msg": "Chapter deleted"}
 
-#  QUIZZES (CRUD) – inside a chapter
-#  Routes →  /api/chapters/<int:chapter_id>/quizzes & /api/quizzes/<id>
+
+# ─────────────────────────────────────────────────────────────────── #
+#  Quiz CRUD (under a chapter)                                        #
+# ------------------------------------------------------------------- #
 class QuizListResource(Resource):
     @jwt_required(optional=True)
     def get(self, chapter_id):
@@ -179,17 +203,18 @@ class QuizListResource(Resource):
     @jwt_required()
     def post(self, chapter_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
-        data = request.get_json()
+            return {"msg": "Admin privileges required"}, 403
+        data = request.get_json() or {}
         quiz = Quiz(
             chapter_id=chapter_id,
             title=data.get("title"),
-            date_of_quiz=data.get("date_of_quiz"),
+            date_of_quiz=datetime.strptime(data.get("date_of_quiz"), "%Y-%m-%d").date() if data.get("date_of_quiz") else None,
             time_duration=data.get("time_duration"),
-            remarks=data.get("remarks")
+            remarks=data.get("remarks"),
         )
         db.session.add(quiz); db.session.commit()
         return {"msg": "Quiz created", "quiz": quiz.to_dict()}, 201
+
 
 class QuizResource(Resource):
     @jwt_required(optional=True)
@@ -200,28 +225,33 @@ class QuizResource(Resource):
     @jwt_required()
     def put(self, quiz_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
+            return {"msg": "Admin privileges required"}, 403
         q = Quiz.query.get_or_404(quiz_id)
-        d = request.get_json()
-        q.title         = d.get("title", q.title)
-        q.date_of_quiz  = d.get("date_of_quiz", q.date_of_quiz)
-        q.time_duration = d.get("time_duration", q.time_duration)
-        q.remarks       = d.get("remarks", q.remarks)
+        data = request.get_json() or {}
+        q.title         = data.get("title", q.title)
+        q.date_of_quiz  = data.get("date_of_quiz", q.date_of_quiz)
+        q.time_duration = data.get("time_duration", q.time_duration)
+        q.remarks       = data.get("remarks", q.remarks)
         db.session.commit()
         return {"msg": "Quiz updated", "quiz": q.to_dict()}
 
     @jwt_required()
     def delete(self, quiz_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
+            return {"msg": "Admin privileges required"}, 403
         q = Quiz.query.get_or_404(quiz_id)
-        if q.questions:
-            return {"msg": "Quiz has questions; delete them first."}, 400
-        db.session.delete(q); db.session.commit()
+        for score in q.scores:
+            db.session.delete(score)
+        for question in q.questions:
+            db.session.delete(question)
+        db.session.delete(q)
+        db.session.commit()
         return {"msg": "Quiz deleted"}
 
-#  QUESTIONS (CRUD) – inside a quiz
-#  Routes → /api/quizzes/<int:quiz_id>/questions  &  /api/questions/<id>
+
+# ─────────────────────────────────────────────────────────────────── #
+#  Question CRUD (under a quiz)                                       #
+# ------------------------------------------------------------------- #
 class QuestionListResource(Resource):
     @jwt_required(optional=True)
     def get(self, quiz_id):
@@ -231,11 +261,13 @@ class QuestionListResource(Resource):
     @jwt_required()
     def post(self, quiz_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
-        data = request.get_json()
-        # Basic validation
+            return {"msg": "Admin privileges required"}, 403
+        data = request.get_json() or {}
         if not data.get("question_statement"):
             return {"msg": "question_statement is required"}, 400
+        if not 1 <= data.get("correct_option", 0) <= 4:
+            return {"msg": "correct_option must be between 1 and 4"}, 400
+
         qs = Question(
             quiz_id=quiz_id,
             question_statement=data["question_statement"],
@@ -243,10 +275,11 @@ class QuestionListResource(Resource):
             option2=data.get("option2"),
             option3=data.get("option3"),
             option4=data.get("option4"),
-            correct_option=data.get("correct_option")
+            correct_option=data.get("correct_option"),
         )
         db.session.add(qs); db.session.commit()
         return {"msg": "Question created", "question": qs.to_dict()}, 201
+
 
 class QuestionResource(Resource):
     @jwt_required(optional=True)
@@ -257,9 +290,9 @@ class QuestionResource(Resource):
     @jwt_required()
     def put(self, question_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
+            return {"msg": "Admin privileges required"}, 403
         qs = Question.query.get_or_404(question_id)
-        d  = request.get_json()
+        d = request.get_json() or {}
         qs.question_statement = d.get("question_statement", qs.question_statement)
         qs.option1, qs.option2, qs.option3, qs.option4 = (
             d.get("option1", qs.option1),
@@ -274,19 +307,22 @@ class QuestionResource(Resource):
     @jwt_required()
     def delete(self, question_id):
         if not is_admin():
-            return {"msg": "Not authorized"}, 401
+            return {"msg": "Admin privileges required"}, 403
         qs = Question.query.get_or_404(question_id)
         db.session.delete(qs); db.session.commit()
         return {"msg": "Question deleted"}
 
-#  USER QUIZ ATTEMPT  (submit answers)  &  SCORE HISTORY
+
+# ─────────────────────────────────────────────────────────────────── #
+#  Quiz Attempt + Score history                                       #
+# ------------------------------------------------------------------- #
 class AttemptQuizResource(Resource):
     @jwt_required()
     def post(self, quiz_id):
-        user_id = get_jwt_identity()
-        quiz = Quiz.query.get_or_404(quiz_id)
+        user_email = get_jwt_identity()
+        user = User.query.filter_by(email=user_email).first_or_404()
 
-        # Expect answers as {question_id: chosen_option_int}
+        quiz = Quiz.query.get_or_404(quiz_id)
         answers = request.get_json().get("answers", {})
         if not answers:
             return {"msg": "Answers required"}, 400
@@ -299,26 +335,69 @@ class AttemptQuizResource(Resource):
 
         score = Score(
             quiz_id=quiz_id,
-            user_id=user_id,
+            user_id=user.id,
             total_score=total,
             attempted_at=datetime.utcnow(),
         )
         db.session.add(score); db.session.commit()
         return {"msg": "Quiz submitted", "total_score": total}, 201
 
+
 class ScoreListResource(Resource):
     @jwt_required()
     def get(self):
-        user_id = get_jwt_identity()
-        scores = Score.query.filter_by(user_id=user_id).order_by(
-            Score.attempted_at.desc()
+        user_email = get_jwt_identity()
+        user = User.query.filter_by(email=user_email).first_or_404()
+        scores = (
+            Score.query.filter_by(user_id=user.id)
+            .order_by(Score.attempted_at.desc())
+            .all()
         )
         return {"scores": [s.to_dict() for s in scores]}, 200
-    
+
+
+# ─────────────────────────────────────────────────────────────────── #
+#  Admin: list all users                                              #
+# ------------------------------------------------------------------- #
 class UserListResource(Resource):
     @jwt_required()
     def get(self):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
-        users = User.query.all()
-        return {"users": [u.to_dict() for u in users]}, 200
+        return {"users": [u.to_dict() for u in User.query.all()]}, 200
+
+class UserAdminResource(Resource):
+    """ Admin-only single‑user operations """
+    @jwt_required()
+    def get(self, user_id):
+        if not is_admin():
+            return {"msg": "Admin privileges required"}, 403
+        user = User.query.get_or_404(user_id)
+        return {"user": user.to_dict()}
+
+    @jwt_required()
+    def delete(self, user_id):
+        if not is_admin():
+            return {"msg": "Admin privileges required"}, 403
+        user = User.query.get_or_404(user_id)
+        # also delete their scores:
+        Score.query.filter_by(user_id=user.id).delete()
+        db.session.delete(user); db.session.commit()
+        return {"msg": "User deleted"}, 200
+
+
+class UserActivationResource(Resource):
+    """PUT → activate / deactivate"""
+    @jwt_required()
+    def put(self, user_id, action):
+        if not is_admin():
+            return {"msg": "Admin privileges required"}, 403
+        user = User.query.get_or_404(user_id)
+
+        if action not in ("activate", "deactivate"):
+            return {"msg": "Invalid action"}, 400
+
+        user.is_active = (action == "activate")
+        db.session.commit()
+        state = "activated" if user.is_active else "deactivated"
+        return {"msg": f"User {state}", "user": user.to_dict()}

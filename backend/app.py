@@ -14,7 +14,8 @@ from controllers import (
     QuizListResource, QuizResource,
     QuestionListResource, QuestionResource,
     UserListResource,
-    ScoreListResource,
+    ScoreListResource, AttemptQuizResource,
+    UserAdminResource, UserActivationResource
 )
 
 
@@ -34,31 +35,28 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})   # dev‑friendly CORS
 # ──────────────────────────────────────────────────────────────────── #
 #  Routes                                                             #
 # Auth
-api.add_resource(LoginResource,    '/api/auth/login')
-api.add_resource(RegisterResource, '/api/auth/register')
+api.add_resource(RegisterResource, "/api/auth/register")
+api.add_resource(LoginResource,    "/api/auth/login")
 
-# Subjects CRUD
-api.add_resource(SubjectListResource, '/api/subjects')
-api.add_resource(SubjectResource,     '/api/subjects/<int:subject_id>')
+# Subjects & nested CRUD
+api.add_resource(SubjectListResource, "/api/subjects")
+api.add_resource(SubjectResource,     "/api/subjects/<int:subject_id>")
+api.add_resource(ChapterListResource, "/api/subjects/<int:subject_id>/chapters")
+api.add_resource(ChapterResource,     "/api/chapters/<int:chapter_id>")
+api.add_resource(QuizListResource,    "/api/chapters/<int:chapter_id>/quizzes")
+api.add_resource(QuizResource,        "/api/quizzes/<int:quiz_id>")
+api.add_resource(QuestionListResource,"/api/quizzes/<int:quiz_id>/questions")
+api.add_resource(QuestionResource,    "/api/questions/<int:question_id>")
 
-# Chapters CRUD
-api.add_resource(ChapterListResource, '/api/subjects/<int:subject_id>/chapters')
-api.add_resource(ChapterResource,     '/api/chapters/<int:chapter_id>')
+# Attempt & scores
+api.add_resource(AttemptQuizResource, "/api/quizzes/<int:quiz_id>/attempt")
+api.add_resource(ScoreListResource,   "/api/scores")
 
-# Quizzes CRUD
-api.add_resource(QuizListResource, '/api/chapters/<int:chapter_id>/quizzes')
-api.add_resource(QuizResource,     '/api/quizzes/<int:quiz_id>')
-
-# Questions CRUD
-api.add_resource(QuestionListResource, '/api/quizzes/<int:quiz_id>/questions')
-api.add_resource(QuestionResource,     '/api/questions/<int:question_id>')
-
-# Scores (user attempts)
-api.add_resource(ScoreListResource, '/api/scores')
-
-# Admin view – list all users
-api.add_resource(UserListResource, '/api/users')
-
+# Admin users
+api.add_resource(UserListResource,      "/api/users")                       # list all
+api.add_resource(UserAdminResource,     "/api/users/<int:user_id>")         # get / delete
+api.add_resource(UserActivationResource,
+                "/api/users/<int:user_id>/<string:action>") 
 
 def seed_admin():
     admin = User.query.filter_by(email='admin@mad2.com').first()
