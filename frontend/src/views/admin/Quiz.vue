@@ -190,30 +190,170 @@ async function deleteQuestion(que){
 </script>
 
 <style scoped>
-.quiz-admin-page{max-width:1100px;margin:auto;padding:20px}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
-.back-btn{background:#f3f4f6;border:1px solid #d1d5db;padding:8px 14px;border-radius:6px;cursor:pointer}
-.add-btn{background:#2563eb;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer}
+.quiz-admin-page {
+  max-width: 1100px;
+  margin: auto;
+  padding: 20px;
+  font-family: system-ui, sans-serif;
+}
 
-/* inline form card */
-.form-card{border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin-bottom:25px;background:#f9fafb}
-.form-card h2{margin-top:0}
-.form-card input, .form-card textarea{width:100%;margin:6px 0;padding:8px;border:1px solid #d1d5db;border-radius:4px}
-.row{display:flex;gap:10px}
-.actions{margin-top:10px;display:flex;gap:8px;justify-content:flex-end}
-.cancel-btn{background:#f3f4f6;border:1px solid #d1d5db;padding:8px 16px;border-radius:4px}
-.save-btn{background:#2563eb;color:#fff;border:none;padding:8px 16px;border-radius:4px}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
 
-/* quiz list */
-.list-wrapper{min-height:300px}.loading,.empty{text-align:center;padding:40px;color:#6b7280}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px}
-.quiz-card{border:1px solid #e5e7eb;border-radius:8px;padding:20px;background:#fff}
-.quiz-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.small{padding:5px 10px;border:none;border-radius:4px;background:#fbbf24;font-size:12px;cursor:pointer}
-.small.danger{background:#ef4444;color:#fff}
-.add{background:#10b981!important;color:#fff;font-size:12px}
-.meta{font-size:13px;color:#6b7280;margin-bottom:12px}
-.question-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0}
-.tiny{padding:3px 6px;border:none;border-radius:3px;background:#e5e7eb;font-size:11px;cursor:pointer}
-.tiny.danger{background:#dc2626;color:#fff}
+.back-btn {
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.add-btn {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ───── Form Card ───── */
+.form-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 25px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.form-card h2 {
+  margin-top: 0;
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.form-card input,
+.form-card textarea {
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #f9fafb;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancel-btn {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.save-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ───── Quiz List ───── */
+.list-wrapper {
+  min-height: 300px;
+}
+
+.loading,
+.empty {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.quiz-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.quiz-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.small {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  background: #fbbf24;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.small.danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.add {
+  background: #10b981 !important;
+  color: #fff;
+  font-size: 12px;
+}
+
+.meta {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.question-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.tiny {
+  padding: 3px 6px;
+  border: none;
+  border-radius: 3px;
+  background: #e5e7eb;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tiny.danger {
+  background: #dc2626;
+  color: #fff;
+}
 </style>

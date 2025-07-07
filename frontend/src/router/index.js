@@ -39,6 +39,17 @@ const router = createRouter({
      name: 'admin-users',
      component: () => import('../views/admin/User.vue')
     },
+    { path: '/user', 
+      component: () => import('../views/user/home.vue')
+     },
+     { path: '/user/subject', 
+      component: () => import('../views/user/subject.vue')
+     },
+     {
+      path: '/quiz/:id',
+      component: () => import('../views/user/Quiz.vue'),
+      props: true
+}
   ],
 })
 
