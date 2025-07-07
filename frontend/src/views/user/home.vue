@@ -10,14 +10,14 @@
       </RouterLink>
 
       <!-- My Scores -->
-      <RouterLink to="/dashboard/scores" class="card">
+      <RouterLink to="/score" class="card">
         <h3>My&nbsp;Scores</h3>
         <p>View your past attempts and track your progress.</p>
       </RouterLink>
 
       <!-- Profile -->
-      <RouterLink to="/dashboard/profile" class="card">
-        <h3>Profile</h3>
+      <RouterLink to="/summary" class="card">
+        <h3>Summary</h3>
         <p>Update personal info or change your password.</p>
       </RouterLink>
     </section>
