@@ -15,7 +15,8 @@ from controllers import (
     QuestionListResource, QuestionResource,
     UserListResource,
     ScoreListResource, AttemptQuizResource,
-    UserAdminResource, UserActivationResource
+    UserAdminResource, UserActivationResource,
+    QuizAllResource,
 )
 
 
@@ -57,6 +58,8 @@ api.add_resource(UserListResource,      "/api/users")                       # li
 api.add_resource(UserAdminResource,     "/api/users/<int:user_id>")         # get / delete
 api.add_resource(UserActivationResource,
                 "/api/users/<int:user_id>/<string:action>") 
+
+api.add_resource(QuizAllResource,     "/api/quizzesall")           # GET (admin)
 
 def seed_admin():
     admin = User.query.filter_by(email='admin@mad2.com').first()

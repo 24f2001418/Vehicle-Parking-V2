@@ -8,6 +8,7 @@ from flask_jwt_extended import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
+import re
 
 from models import db, User, Subject, Chapter, Quiz, Question, Score
 
@@ -204,15 +205,19 @@ class QuizListResource(Resource):
     def post(self, chapter_id):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
+
         data = request.get_json() or {}
+
         quiz = Quiz(
             chapter_id=chapter_id,
             title=data.get("title"),
-            date_of_quiz=datetime.strptime(data.get("date_of_quiz"), "%Y-%m-%d").date() if data.get("date_of_quiz") else None,
+            start_time=datetime.strptime(data.get("start_time"), "%Y-%m-%dT%H:%M") if data.get("start_time") else None,
+            end_time=datetime.strptime(data.get("end_time"), "%Y-%m-%dT%H:%M") if data.get("end_time") else None,
             time_duration=data.get("time_duration"),
             remarks=data.get("remarks"),
         )
-        db.session.add(quiz); db.session.commit()
+        db.session.add(quiz)
+        db.session.commit()
         return {"msg": "Quiz created", "quiz": quiz.to_dict()}, 201
 
 
@@ -323,6 +328,17 @@ class AttemptQuizResource(Resource):
         user = User.query.filter_by(email=user_email).first_or_404()
 
         quiz = Quiz.query.get_or_404(quiz_id)
+
+        # ✅ TIME VALIDATION: only allow attempt if within allowed window
+        now = datetime.utcnow()
+
+        if quiz.start_time and now < quiz.start_time:
+            return {"msg": "Quiz has not started yet."}, 403
+
+        if quiz.end_time and now > quiz.end_time:
+            return {"msg": "Quiz has expired."}, 403
+
+        # ✅ SCORE CALCULATION
         answers = request.get_json().get("answers", {})
         if not answers:
             return {"msg": "Answers required"}, 400
@@ -337,9 +353,11 @@ class AttemptQuizResource(Resource):
             quiz_id=quiz_id,
             user_id=user.id,
             total_score=total,
-            attempted_at=datetime.utcnow(),
+            attempted_at=now,
         )
-        db.session.add(score); db.session.commit()
+        db.session.add(score)
+        db.session.commit()
+
         return {"msg": "Quiz submitted", "total_score": total}, 201
 
 
@@ -401,3 +419,12 @@ class UserActivationResource(Resource):
         db.session.commit()
         state = "activated" if user.is_active else "deactivated"
         return {"msg": f"User {state}", "user": user.to_dict()}
+
+class QuizAllResource(Resource):
+    @jwt_required()
+    def get(self):
+        if not is_admin():
+            return {"msg": "Admin privileges required"}, 403
+
+        quizzes = Quiz.query.all()
+        return {"quizzes": [q.to_dict() for q in quizzes]}, 200

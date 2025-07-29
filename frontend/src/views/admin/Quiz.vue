@@ -13,11 +13,11 @@
       <form @submit.prevent="saveQuiz">
         <input v-model.trim="quizForm.title" placeholder="Title" required />
 
-        <div class="row">
-          <input type="date" v-model="quizForm.date_of_quiz" />
-          <input v-model.trim="quizForm.time_duration"
-                 placeholder="Duration HH:MM" />
-        </div>
+      <div class="row">
+      <input type="datetime-local" v-model="quizForm.start_time" placeholder="Start Time" />
+      <input type="datetime-local" v-model="quizForm.end_time" placeholder="End Time" />
+      </div>
+      <input v-model.trim="quizForm.time_duration" placeholder="Duration HH:MM" />
 
         <textarea v-model.trim="quizForm.remarks"
                   rows="2" placeholder="Remarks" />
@@ -105,7 +105,7 @@ const loading = ref(true)
 /* inline form state */
 const showForm   = ref(false)
 const editingQuiz= ref(null)
-const quizForm   = ref({ title:'', date_of_quiz:'', time_duration:'', remarks:'' })
+const quizForm   = ref({ title:'', start_time:'',end_time:'', time_duration:'', remarks:'' })
 
 /* question modal */
 const showQuestionModal = ref(false)
@@ -137,7 +137,7 @@ async function loadQuizzes () {
 function resetForm () {
   showForm.value = false
   editingQuiz.value = null
-  quizForm.value = { title:'', date_of_quiz:'', time_duration:'', remarks:'' }
+  quizForm.value = { title:'',start_time:'', end_time:'', time_duration:'', remarks:'' }
 }
 function startAdd () { resetForm(); showForm.value = true }
 function editQuiz (q) {

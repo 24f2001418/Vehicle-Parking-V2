@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -80,8 +80,9 @@ class Quiz(db.Model):
     id            = db.Column(db.Integer, primary_key=True)
     chapter_id    = db.Column(db.Integer, db.ForeignKey('chapter.id', ondelete='CASCADE'), nullable=False)
     title         = db.Column(db.String(150))
-    date_of_quiz  = db.Column(db.Date)        # optional scheduling
-    time_duration = db.Column(db.String(8))   # "HH:MM"
+    start_time    = db.Column(db.DateTime, nullable=False)  # NEW
+    end_time      = db.Column(db.DateTime, nullable=False)  # NEW
+    time_duration = db.Column(db.String(8))  # format HH:MM
     remarks       = db.Column(db.Text)
 
     questions = db.relationship(
@@ -102,10 +103,15 @@ class Quiz(db.Model):
             "id": self.id,
             "chapter_id": self.chapter_id,
             "title": self.title,
-            "date_of_quiz": self.date_of_quiz.isoformat() if self.date_of_quiz else None,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "end_time": self.end_time.isoformat() if self.end_time else None,
             "time_duration": self.time_duration,
             "remarks": self.remarks,
         }
+
+    def is_active(self):
+        now = datetime.utcnow()
+        return self.start_time <= now <= self.end_time
 
 
 class Question(db.Model):

@@ -1,6 +1,6 @@
 <template>
   <main class="dash-wrapper">
-    <!-- Subjects list -->
+    <!-- Subjects -->
     <section v-if="!selected" class="subject-grid" v-show="!loading">
       <h2 class="title">Available Subjects</h2>
 
@@ -19,7 +19,7 @@
       <p v-else class="empty">No subjects found.</p>
     </section>
 
-    <!-- Quizzes in chosen subject -->
+    <!-- Quizzes -->
     <section v-else class="quiz-list" v-show="!loading">
       <button class="back-btn" @click="reset">← Back to subjects</button>
       <h2 class="title">{{ selected.name }} – Quizzes</h2>
@@ -27,12 +27,17 @@
       <div v-if="quizzes.length" class="grid">
         <div v-for="q in quizzes" :key="q.id" class="card card-quiz">
           <h3>{{ q.title }}</h3>
+          <p><strong>Duration:</strong> {{ q.time_duration || '—' }} mins</p>
           <p>
-            <strong>Duration:</strong>
-            {{ q.time_duration || '—' }}
+            <strong>Start:</strong> {{ formatDate(q.start_time) }}<br />
+            <strong>End:</strong> {{ formatDate(q.end_time) }}
           </p>
-          <button class="start" @click="goAttempt(q.id)">
-            Start&nbsp;Quiz
+          <button
+            class="start"
+            :disabled="!isWithinTime(q)"
+            @click="goAttempt(q.id)"
+          >
+            {{ getQuizStatus(q) }}
           </button>
         </div>
       </div>
@@ -53,28 +58,29 @@ const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api'
 const router = useRouter()
 const hdr = () => ({ Authorization: `Bearer ${localStorage.token}` })
 
-const loading   = ref(true)
-const subjects  = ref([])
-const selected  = ref(null)     // currently picked subject object
-const quizzes   = ref([])       // quizzes aggregated for that subject
+const loading = ref(true)
+const subjects = ref([])
+const selected = ref(null)
+const quizzes = ref([])
 
-/* Initial load – subjects */
 onMounted(loadSubjects)
-async function loadSubjects () {
+
+async function loadSubjects() {
   loading.value = true
   try {
     const { data } = await axios.get(`${API}/subjects`, { headers: hdr() })
     subjects.value = data.subjects || []
+  } catch (err) {
+    console.error('Failed to load subjects:', err)
   } finally {
     loading.value = false
   }
 }
 
-/* When user clicks a subject */
-async function selectSubject (subj) {
+async function selectSubject(subj) {
   selected.value = subj
-  quizzes.value  = []
-  loading.value  = true
+  quizzes.value = []
+  loading.value = true
 
   try {
     const { data: chData } = await axios.get(
@@ -83,38 +89,69 @@ async function selectSubject (subj) {
     )
     const chapters = chData.chapters || []
 
-    // Fetch quizzes for every chapter (parallel)
-    const promises = chapters.map(c =>
+    const quizPromises = chapters.map(c =>
       axios
         .get(`${API}/chapters/${c.id}/quizzes`, { headers: hdr() })
         .then(r => r.data.quizzes || [])
     )
-    const chunks   = await Promise.all(promises)
-    quizzes.value  = chunks.flat()
+
+    const allQuizzes = (await Promise.all(quizPromises)).flat()
+
+    quizzes.value = allQuizzes.sort((a, b) =>
+      new Date(a.start_time) - new Date(b.start_time)
+    )
+  } catch (err) {
+    console.error('Failed to load quizzes:', err)
   } finally {
     loading.value = false
   }
 }
 
-/* Back to subjects list */
-function reset () {
+function reset() {
   selected.value = null
-  quizzes.value  = []
+  quizzes.value = []
 }
 
-/* Go to quiz attempt view */
-function goAttempt (id) {
-  router.push(`/quiz/${id}`)      // adjust route if different
+function goAttempt(id) {
+  router.push(`/quiz/${id}`)
+}
+
+function isWithinTime(q) {
+  if (!q.start_time || !q.end_time) return true
+  const now = new Date()
+  const start = new Date(q.start_time)
+  const end = new Date(q.end_time)
+  return now >= start && now <= end
+}
+
+function getQuizStatus(q) {
+  if (!q.start_time || !q.end_time) return 'Start Quiz'
+
+  const now = new Date()
+  const start = new Date(q.start_time)
+  const end = new Date(q.end_time)
+
+  if (now < start) return 'Soon'
+  if (now > end) return 'Expired'
+  return 'Start Quiz'
+}
+
+function formatDate(dt) {
+  if (!dt) return '—'
+  const d = new Date(dt)
+  return d.toLocaleString('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
 }
 </script>
 
 <style scoped>
-/* --- Layout wrappers --- */
 .dash-wrapper {
   max-width: 1000px;
   margin: 0 auto;
   padding: 2rem 1.25rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Segoe UI', sans-serif;
 }
 .title {
   font-size: 1.6rem;
@@ -122,17 +159,13 @@ function goAttempt (id) {
   margin-bottom: 1.25rem;
   color: #1e293b;
 }
-
-/* --- Grid of cards --- */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1.25rem;
 }
-
-/* --- Card --- */
 .card {
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 1.2rem 1rem;
@@ -150,12 +183,10 @@ function goAttempt (id) {
   color: #2563eb;
 }
 .card p {
-  margin: 0;
+  margin: 0.25rem 0;
   font-size: 0.95rem;
   color: #475569;
 }
-
-/* --- Quiz card custom --- */
 .card-quiz {
   cursor: default;
 }
@@ -174,8 +205,10 @@ function goAttempt (id) {
 .start:hover {
   background: #16a34a;
 }
-
-/* --- Back button --- */
+.start:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
 .back-btn {
   margin-bottom: 1rem;
   border: 1px solid #cbd5e1;
@@ -184,8 +217,6 @@ function goAttempt (id) {
   border-radius: 6px;
   cursor: pointer;
 }
-
-/* --- States --- */
 .loading,
 .empty {
   text-align: center;
