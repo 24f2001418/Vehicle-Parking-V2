@@ -12,6 +12,9 @@ import re
 
 from models import db, User, Subject, Chapter, Quiz, Question, Score
 
+# Import caching/rate-limiting decorators
+from utils_cache import make_cache_key, rate_limit
+
 # ─────────────────────────────────────────────────────────────────── #
 #  Helpers                                                            #
 # ------------------------------------------------------------------- #
@@ -439,6 +442,8 @@ def search_by_query(model, field, query):
 
 class UserSearchQuizzesSubjectsAPI(Resource):
     @jwt_required(optional=True)
+    @rate_limit(limit=20, period=60)
+    @make_cache_key('usersearch', timeout=60)
     def get(self):
         q = request.args.get("q", "").strip()
         if not q:
@@ -456,6 +461,8 @@ class UserSearchQuizzesSubjectsAPI(Resource):
 # ------------------------------------------------------------------- #
 class SearchChaptersAPI(Resource):
     @jwt_required()
+    @rate_limit(limit=10, period=60)
+    @make_cache_key('searchchapters', timeout=60)
     def get(self):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
@@ -468,6 +475,8 @@ class SearchChaptersAPI(Resource):
 
 class SearchUsersAPI(Resource):
     @jwt_required()
+    @rate_limit(limit=10, period=60)
+    @make_cache_key('searchusers', timeout=60)
     def get(self):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
@@ -480,6 +489,8 @@ class SearchUsersAPI(Resource):
 
 class SearchSubjectsAPI(Resource):
     @jwt_required()
+    @rate_limit(limit=10, period=60)
+    @make_cache_key('searchsubjects', timeout=60)
     def get(self):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
@@ -492,6 +503,8 @@ class SearchSubjectsAPI(Resource):
 
 class SearchQuizzesAPI(Resource):
     @jwt_required()
+    @rate_limit(limit=10, period=60)
+    @make_cache_key('searchquizzes', timeout=60)
     def get(self):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
@@ -504,6 +517,8 @@ class SearchQuizzesAPI(Resource):
 
 class SearchQuestionsAPI(Resource):
     @jwt_required()
+    @rate_limit(limit=10, period=60)
+    @make_cache_key('searchquestions', timeout=60)
     def get(self):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
