@@ -329,7 +329,7 @@ class AttemptQuizResource(Resource):
 
         quiz = Quiz.query.get_or_404(quiz_id)
 
-        # ✅ TIME VALIDATION: only allow attempt if within allowed window
+        # TIME VALIDATION: only allow attempt if within allowed window
         now = datetime.utcnow()
 
         if quiz.start_time and now < quiz.start_time:
@@ -338,7 +338,7 @@ class AttemptQuizResource(Resource):
         if quiz.end_time and now > quiz.end_time:
             return {"msg": "Quiz has expired."}, 403
 
-        # ✅ SCORE CALCULATION
+        # SCORE CALCULATION
         answers = request.get_json().get("answers", {})
         if not answers:
             return {"msg": "Answers required"}, 400
@@ -428,3 +428,87 @@ class QuizAllResource(Resource):
 
         quizzes = Quiz.query.all()
         return {"quizzes": [q.to_dict() for q in quizzes]}, 200
+
+def search_by_query(model, field, query):
+    return db.session.query(model).filter(field.ilike(f"%{query}%")).all()
+
+
+# ─────────────────────────────────────────────────────────────────── #
+#  User Search: Find quizzes and subjects by keyword (not admin)     #
+# ------------------------------------------------------------------- 
+
+class UserSearchQuizzesSubjectsAPI(Resource):
+    @jwt_required(optional=True)
+    def get(self):
+        q = request.args.get("q", "").strip()
+        if not q:
+            return {"quizzes": [], "subjects": []}
+        quizzes = search_by_query(Quiz, Quiz.title, q)
+        subjects = search_by_query(Subject, Subject.name, q)
+        return {
+            "quizzes": [{"id": quiz.id, "title": quiz.title, "chapter_id": quiz.chapter_id} for quiz in quizzes],
+            "subjects": [{"id": subj.id, "name": subj.name} for subj in subjects]
+        }
+
+
+# ─────────────────────────────────────────────────────────────────── #
+#  Search Chapters API (admin only)                                  #
+# ------------------------------------------------------------------- #
+class SearchChaptersAPI(Resource):
+    @jwt_required()
+    def get(self):
+        if not is_admin():
+            return {"msg": "Admin privileges required"}, 403
+        q = request.args.get("q", "").strip()
+        if not q:
+            return {"chapters": []}
+        chapters = search_by_query(Chapter, Chapter.name, q)
+        return {"chapters": [{"id": c.id, "name": c.name, "subject_id": c.subject_id} for c in chapters]}
+
+
+class SearchUsersAPI(Resource):
+    @jwt_required()
+    def get(self):
+        if not is_admin():
+            return {"msg": "Admin privileges required"}, 403
+        q = request.args.get("q", "").strip()
+        if not q:
+            return {"users": []}
+        users = search_by_query(User, User.full_name, q)
+        return {"users": [{"id": u.id, "name": u.full_name, "email": u.email} for u in users]}
+
+
+class SearchSubjectsAPI(Resource):
+    @jwt_required()
+    def get(self):
+        if not is_admin():
+            return {"msg": "Admin privileges required"}, 403
+        q = request.args.get("q", "").strip()
+        if not q:
+            return {"subjects": []}
+        subjects = search_by_query(Subject, Subject.name, q)
+        return {"subjects": [{"id": s.id, "name": s.name} for s in subjects]}
+
+
+class SearchQuizzesAPI(Resource):
+    @jwt_required()
+    def get(self):
+        if not is_admin():
+            return {"msg": "Admin privileges required"}, 403
+        q = request.args.get("q", "").strip()
+        if not q:
+            return {"quizzes": []}
+        quizzes = search_by_query(Quiz, Quiz.title, q)
+        return {"quizzes": [{"id": qz.id, "title": qz.title, "chapter_id": qz.chapter_id} for qz in quizzes]}
+
+
+class SearchQuestionsAPI(Resource):
+    @jwt_required()
+    def get(self):
+        if not is_admin():
+            return {"msg": "Admin privileges required"}, 403
+        q = request.args.get("q", "").strip()
+        if not q:
+            return {"questions": []}
+        questions = search_by_query(Question, Question.question_statement, q)
+        return {"questions": [{"id": qs.id, "text": qs.question_statement, "quiz_id": qs.quiz_id} for qs in questions]}

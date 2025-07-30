@@ -1,59 +1,83 @@
 <template>
-  <div class="admin-welcome">
-    <h2>Welcome, Admin 👋</h2>
-
-    <!-- Stats -->
-    <div class="stats-container">
-      <div class="stat-box" @click="router.push('/admin/users')">
-        <h3>{{ stats.totalUsers }}</h3>
-        <p>Users</p>
+  <div class="admin-page">
+    <!-- Admin Search (Top Centered) -->
+    <div class="admin-search">
+      <input
+        v-model="query"
+        type="text"
+        placeholder="Search users, subjects, quizzes, or questions..."
+        @input="performSearch"
+      />
+      <div v-if="results.length">
+        <h3>Results</h3>
+        <ul>
+          <li v-for="(item, index) in results" :key="index">
+            <strong>{{ item.type }}:</strong> {{ item.name }}
+          </li>
+        </ul>
       </div>
-      <div class="stat-box" @click="router.push('/admin/quizzes')">
-        <h3>{{ stats.totalQuizzes }}</h3>
-        <p>Quizzes</p>
-      </div>
-      <div class="stat-box" @click="router.push('/admin/questions')">
-        <h3>{{ stats.totalQuestions }}</h3>
-        <p>Questions</p>
-      </div>
-      <div class="stat-box" @click="router.push('/admin/sessions')">
-        <h3>{{ stats.activeSessions }}</h3>
-        <p>Sessions</p>
-      </div>
-    </div>
-
-    <!-- Manage Section -->
-    <div class="manage-section">
-      <div class="manage-item" @click="router.push('/admin/Subject')">
-        <span class="icon">📚</span>
-        <div>
-          <h4>Manage Subjects</h4>
-          <p>Create, edit & delete subjects</p>
-        </div>
-      </div>
-      <div class="manage-item" @click="router.push('/admin/users')">
-        <span class="icon">👤</span>
-        <div>
-          <h4>Manage Users</h4>
-          <p>View & control users</p>
-        </div>
-      </div>
-      <div class="manage-item" @click="router.push('/admin/schedule')">
-       <span class="icon">⏰</span>
-       <div>
-         <h4>Quiz Scheduling</h4>
-         <p>Set quiz timings and duration</p>
-         </div>
-      </div> 
-      <div class="manage-item" @click="router.push('/admin/summary')">
-        <span class="icon">📊</span>
-        <div>
-          <h4>Summary</h4>
-          <p>Track overall performance</p>
-        </div>
+      <div v-else-if="query">
+        <p>No results found.</p>
       </div>
     </div>
-</div>
+
+    <!-- Admin Welcome -->
+    <div class="admin-welcome">
+      <h2>Welcome, Admin 👋</h2>
+
+      <!-- Stats -->
+      <div class="stats-container">
+        <div class="stat-box" @click="router.push('/admin/users')">
+          <h3>{{ stats.totalUsers }}</h3>
+          <p>Users</p>
+        </div>
+        <div class="stat-box" @click="router.push('/admin/quizzes')">
+          <h3>{{ stats.totalQuizzes }}</h3>
+          <p>Quizzes</p>
+        </div>
+        <div class="stat-box" @click="router.push('/admin/questions')">
+          <h3>{{ stats.totalQuestions }}</h3>
+          <p>Questions</p>
+        </div>
+        <div class="stat-box" @click="router.push('/admin/sessions')">
+          <h3>{{ stats.activeSessions }}</h3>
+          <p>Sessions</p>
+        </div>
+      </div>
+
+      <!-- Manage Section -->
+      <div class="manage-section">
+        <div class="manage-item" @click="router.push('/admin/Subject')">
+          <span class="icon">📚</span>
+          <div>
+            <h4>Manage Subjects</h4>
+            <p>Create, edit & delete subjects</p>
+          </div>
+        </div>
+        <div class="manage-item" @click="router.push('/admin/users')">
+          <span class="icon">👤</span>
+          <div>
+            <h4>Manage Users</h4>
+            <p>View & control users</p>
+          </div>
+        </div>
+        <div class="manage-item" @click="router.push('/admin/schedule')">
+          <span class="icon">⏰</span>
+          <div>
+            <h4>Quiz Scheduling</h4>
+            <p>Set quiz timings and duration</p>
+          </div>
+        </div>
+        <div class="manage-item" @click="router.push('/admin/summary')">
+          <span class="icon">📊</span>
+          <div>
+            <h4>Summary</h4>
+            <p>Track overall performance</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -73,7 +97,7 @@ onMounted(async () => {
   await Promise.all([fetchUsers(), fetchQuizzes(), fetchQuestions()])
 })
 
-async function fetchUsers () {
+async function fetchUsers() {
   const res = await fetch('/api/users', {
     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
   })
@@ -82,7 +106,7 @@ async function fetchUsers () {
   }
 }
 
-async function fetchQuizzes () {
+async function fetchQuizzes() {
   const res = await fetch('/api/quizzes', {
     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
   })
@@ -91,7 +115,7 @@ async function fetchQuizzes () {
   }
 }
 
-async function fetchQuestions () {
+async function fetchQuestions() {
   const res = await fetch('/api/questions/count', {
     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
   })
@@ -100,18 +124,68 @@ async function fetchQuestions () {
   }
   stats.value.activeSessions = Math.floor(Math.random() * 10) + 1
 }
+
+// Search logic
+const query = ref('')
+const results = ref([])
+
+const performSearch = async () => {
+  if (!query.value.trim()) {
+    results.value = []
+    return
+  }
+
+  const token = localStorage.getItem('token')
+  const headers = { Authorization: `Bearer ${token}` }
+
+  const [usersRes, subjectsRes, chaptersRes, quizzesRes, questionsRes] = await Promise.all([
+    fetch(`/api/search/users?q=${query.value}`, { headers }),
+    fetch(`/api/search/subjects?q=${query.value}`, { headers }),
+    fetch(`/api/search/chapters?q=${query.value}`, { headers }),
+    fetch(`/api/search/quizzes?q=${query.value}`, { headers }),
+    fetch(`/api/search/questions?q=${query.value}`, { headers })
+  ])
+
+  results.value = []
+
+  if (usersRes.ok) {
+    const users = await usersRes.json()
+    results.value.push(...(users.users || []).map(u => ({ type: 'User', name: u.name })))
+  }
+  if (subjectsRes.ok) {
+    const subjects = await subjectsRes.json()
+    results.value.push(...(subjects.subjects || []).map(s => ({ type: 'Subject', name: s.name })))
+  }
+  if (chaptersRes.ok) {
+    const chapters = await chaptersRes.json()
+    results.value.push(...(chapters.chapters || []).map(c => ({ type: 'Chapter', name: c.name })))
+  }
+  if (quizzesRes.ok) {
+    const quizzes = await quizzesRes.json()
+    results.value.push(...(quizzes.quizzes || []).map(q => ({ type: 'Quiz', name: q.title })))
+  }
+  if (questionsRes.ok) {
+    const questions = await questionsRes.json()
+    results.value.push(...(questions.questions || []).map(q => ({ type: 'Question', name: q.text })))
+  }
+}
 </script>
 
 <style scoped>
-.admin-welcome {
-  padding: 2rem;
+.admin-page {
   font-family: 'Segoe UI', sans-serif;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
 }
-.admin-welcome h2 {
-  font-size: 1.75rem;
-  font-weight: 600;
+
+/* Dashboard styling */
+.admin-welcome h2,
+.admin-search {
+  width: 100%;
+  max-width: 600px;
   margin-bottom: 2rem;
-  color: #1e293b;
+  text-align: center;
 }
 
 .stats-container {
@@ -139,7 +213,7 @@ async function fetchQuestions () {
   color: #2563eb;
 }
 .stat-box p {
-  margin: 0.25rem 0 0 0;
+  margin: 0.25rem 0 0;
   color: #475569;
   font-weight: 500;
 }
@@ -175,5 +249,29 @@ async function fetchQuestions () {
   margin: 0.25rem 0 0;
   font-size: 0.875rem;
   color: #6b7280;
+}
+
+/* Search styling */
+.admin-search {
+  margin-top: 3rem;
+  max-width: 700px;
+}
+
+.admin-search input {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
 }
 </style>

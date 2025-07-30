@@ -2,6 +2,27 @@
   <main class="home-wrapper">
     <h2 class="greet">Welcome to QuizMaster</h2>
 
+    <!-- Search Bar -->
+    <div class="user-search">
+      <input
+        v-model="query"
+        type="text"
+        placeholder="Search quizzes or subjects..."
+        @input="performSearch"
+      />
+      <div v-if="results.length">
+        <h3>Results</h3>
+        <ul>
+          <li v-for="(item, idx) in results" :key="idx">
+            <strong>{{ item.type }}:</strong> {{ item.name }}
+          </li>
+        </ul>
+      </div>
+      <div v-else-if="query">
+        <p>No results found.</p>
+      </div>
+    </div>
+
     <section class="card-grid">
       <!-- Browse Quizzes -->
       <RouterLink to="/user/subject" class="card">
@@ -28,14 +49,34 @@
 import { RouterLink } from 'vue-router'
 import { ref, onMounted } from 'vue'
 
-// You might fetch user data from a store or API.
-// For now, extract name from localStorage (set after login).
 const userName = ref('User')
+const query = ref('')
+const results = ref([])
 
 onMounted(() => {
   const stored = JSON.parse(localStorage.getItem('user') || '{}')
   userName.value = stored.full_name || 'User'
 })
+
+const performSearch = async () => {
+  if (!query.value.trim()) {
+    results.value = []
+    return
+  }
+  const res = await fetch(`/api/search/user/quizsubject?q=${encodeURIComponent(query.value)}`)
+  if (res.ok) {
+    const data = await res.json()
+    results.value = []
+    if (data.subjects) {
+      results.value.push(...data.subjects.map(s => ({ type: 'Subject', name: s.name })))
+    }
+    if (data.quizzes) {
+      results.value.push(...data.quizzes.map(q => ({ type: 'Quiz', name: q.title })))
+    }
+  } else {
+    results.value = []
+  }
+}
 </script>
 
 <style scoped>
@@ -89,5 +130,27 @@ onMounted(() => {
   margin: 0;
   font-size: 0.95rem;
   color: #475569;
+}
+/* User Search */
+.user-search {
+  margin: 2rem auto 2.5rem auto;
+  max-width: 500px;
+  text-align: center;
+}
+.user-search input {
+  width: 100%;
+  padding: 0.7rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+.user-search ul {
+  list-style: none;
+  padding: 0;
+}
+.user-search li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
 }
 </style>
