@@ -1,10 +1,7 @@
 <template>
   <div class="user-page">
-    <!-- Header -->
     <header class="page-header">
       <button class="back-btn" @click="router.back()">← Back</button>
-      <h1>Manage Users</h1>
-    </header>
 
     <!-- Controls -->
     <section class="controls">
@@ -46,6 +43,14 @@
       <p v-if="!filtered.length" class="empty">No users found.</p>
     </div>
     <div v-else class="loading">Loading…</div>
+    </header>
+
+  <!-- Download CSV Button -->
+  <div class="export-csv-bar">
+    <button class="btn export" @click="exportAdminCSV" :disabled="exporting">
+      {{ exporting ? 'Exporting...' : 'Download All User Performance (CSV)' }}
+    </button>
+  </div>
 
     <!-- Confirmation Modal -->
     <dialog ref="modalRef" class="modal">
@@ -69,6 +74,19 @@
 </template>
 
 <script setup>
+const exporting = ref(false)
+
+async function exportAdminCSV() {
+  exporting.value = true
+  try {
+    await axios.post(`${API}/export/admin-csv`, {}, { headers: hdr() })
+    showToast('Export started! Check your email soon.', 'success')
+  } catch (e) {
+    showToast('Failed to start export', 'error')
+  } finally {
+    exporting.value = false
+  }
+}
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
@@ -172,12 +190,33 @@ function openDeleteModal (u) {
 
 <style scoped>
 :root {
+:root {
   --c-green: #22c55e;
   --c-green-hover: #16a34a;
   --c-warn: #facc15;
   --c-warn-hover: #eab308;
   --c-danger: #dc2626;
   --c-danger-hover: #b91c1c;
+}
+
+.export-csv-bar {
+  margin: 1.5rem 0 1rem 0;
+  text-align: right;
+}
+.btn.export {
+  background: #2563eb;
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn.export:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
 }
 
 /* Layout */

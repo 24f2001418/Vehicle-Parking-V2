@@ -53,8 +53,11 @@ const router = createRouter({
     {path: '/score', 
       component: () => import('../views/user/Score.vue')
      },
-     {path: '/summary', 
-      component: () => import('../views/user/Summary.vue')
+     { path: '/Summary', 
+       component: () => import('../views/user/Summary.vue')
+     },
+     { path: '/admin/summary', 
+       component: () => import('../views/admin/Summary.vue')
      },
   ],
 })

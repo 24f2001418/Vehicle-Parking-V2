@@ -30,8 +30,20 @@ celery -A tasks.celery beat --loglevel=info
 ## Test Email
 All emails sent by the app will appear in the Mailhog web UI at http://localhost:8025
 
-## Notes
-- Celery and Redis are used for background processing.
-- Daily and monthly tasks are scheduled via Celery Beat.
+# Celery and Redis are used for background processing.
+# Daily and monthly tasks are scheduled via Celery Beat.
+
+## CSV Export via Celery
+- Users can request a CSV export of their quiz history (sent to their email).
+- Admins can request a CSV export of all user performance (sent to admin email).
+- Both exports are handled asynchronously by Celery and delivered via Mailhog email.
+
+To trigger from Python (example):
+```
+from export_tasks import export_user_quiz_history_csv, export_admin_user_performance_csv
+export_user_quiz_history_csv.delay(user_id, user_email)
+export_admin_user_performance_csv.delay(admin_email)
+```
+All emails will appear in Mailhog (http://localhost:8025).
 # Quiz-master-V2
 Quiz Master V2 is a multi-user exam prep app for the MAD II course. Users can register, log in, and take quizzes by subject/chapter. The admin manages users, subjects, chapters, quizzes, and questions. Features include score tracking, reminders, and monthly reports.

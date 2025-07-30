@@ -61,13 +61,6 @@
             <p>View & control users</p>
           </div>
         </div>
-        <div class="manage-item" @click="router.push('/admin/schedule')">
-          <span class="icon">⏰</span>
-          <div>
-            <h4>Quiz Scheduling</h4>
-            <p>Set quiz timings and duration</p>
-          </div>
-        </div>
         <div class="manage-item" @click="router.push('/admin/summary')">
           <span class="icon">📊</span>
           <div>

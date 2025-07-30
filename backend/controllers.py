@@ -512,3 +512,13 @@ class SearchQuestionsAPI(Resource):
             return {"questions": []}
         questions = search_by_query(Question, Question.question_statement, q)
         return {"questions": [{"id": qs.id, "text": qs.question_statement, "quiz_id": qs.quiz_id} for qs in questions]}
+
+# Export search API classes for app.py
+__all__ = [
+    'SearchUsersAPI',
+    'SearchSubjectsAPI',
+    'SearchQuizzesAPI',
+    'SearchQuestionsAPI',
+    'SearchChaptersAPI',
+    'UserSearchQuizzesSubjectsAPI',
+]

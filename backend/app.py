@@ -16,10 +16,12 @@ from controllers import (
     UserListResource,
     ScoreListResource, AttemptQuizResource,
     UserAdminResource, UserActivationResource,
-    QuizAllResource,SearchQuestionsAPI,
-    SearchUsersAPI, SearchSubjectsAPI,SearchQuizzesAPI,SearchChaptersAPI,
-    UserSearchQuizzesSubjectsAPI,
+    QuizAllResource,
 )
+from controllers import (
+    SearchUsersAPI, SearchSubjectsAPI, SearchQuizzesAPI, SearchQuestionsAPI, SearchChaptersAPI, UserSearchQuizzesSubjectsAPI
+)
+from admin_analytics import admin_analytics_bp
 
 
 app = Flask(__name__)
@@ -29,11 +31,15 @@ app.config['SQLALCHEMY_DATABASE_URI']  = os.getenv('DATABASE_URL', 'sqlite:///qu
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'change-me')
 
+
 # Init extensions
 db.init_app(app)
 jwt = JWTManager(app)
 api = Api(app)
 CORS(app, resources={r"/api/*": {"origins": "*"}})   # dev‑friendly CORS
+
+# Register blueprints
+app.register_blueprint(admin_analytics_bp)
 
 # ──────────────────────────────────────────────────────────────────── #
 #  Routes                                                             #
@@ -62,6 +68,7 @@ api.add_resource(UserActivationResource,
                 "/api/users/<int:user_id>/<string:action>") 
 
 api.add_resource(QuizAllResource,     "/api/quizzesall")           # GET (admin)
+from admin_analytics import admin_analytics_bp
 api.add_resource(SearchUsersAPI, '/api/search/users')
 api.add_resource(SearchSubjectsAPI, '/api/search/subjects')
 api.add_resource(SearchQuizzesAPI, '/api/search/quizzes')
