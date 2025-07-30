@@ -61,6 +61,7 @@ api.add_resource(QuestionResource,    "/api/questions/<int:question_id>")
 api.add_resource(AttemptQuizResource, "/api/quizzes/<int:quiz_id>/attempt")
 api.add_resource(ScoreListResource,   "/api/scores")
 
+
 # Admin users
 api.add_resource(UserListResource,      "/api/users")                       # list all
 api.add_resource(UserAdminResource,     "/api/users/<int:user_id>")         # get / delete

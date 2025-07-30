@@ -2,6 +2,7 @@
   <div class="user-page">
     <header class="page-header">
       <button class="back-btn" @click="router.back()">← Back</button>
+    </header>
 
     <!-- Controls -->
     <section class="controls">
@@ -34,7 +35,7 @@
             :class="u.is_active ? 'warn' : 'green'"
             @click="openToggleModal(u)"
           >
-            {{ u.is_active ? 'Deactivate' : 'Activate' }}
+          Deactivate
           </button>
           <button class="btn tiny danger" @click="openDeleteModal(u)">Delete</button>
         </div>
@@ -43,14 +44,13 @@
       <p v-if="!filtered.length" class="empty">No users found.</p>
     </div>
     <div v-else class="loading">Loading…</div>
-    </header>
 
-  <!-- Download CSV Button -->
-  <div class="export-csv-bar">
-    <button class="btn export" @click="exportAdminCSV" :disabled="exporting">
-      {{ exporting ? 'Exporting...' : 'Download All User Performance (CSV)' }}
-    </button>
-  </div>
+    <!-- Download CSV Button -->
+    <div class="export-csv-bar">
+      <button class="btn export" @click="exportAdminCSV" :disabled="exporting">
+        {{ exporting ? 'Exporting...' : 'Download All User Performance (CSV)' }}
+      </button>
+    </div>
 
     <!-- Confirmation Modal -->
     <dialog ref="modalRef" class="modal">
@@ -190,7 +190,6 @@ function openDeleteModal (u) {
 
 <style scoped>
 :root {
-:root {
   --c-green: #22c55e;
   --c-green-hover: #16a34a;
   --c-warn: #facc15;
@@ -199,95 +198,72 @@ function openDeleteModal (u) {
   --c-danger-hover: #b91c1c;
 }
 
-.export-csv-bar {
-  margin: 1.5rem 0 1rem 0;
-  text-align: right;
-}
-.btn.export {
-  background: #2563eb;
-  color: #fff;
-  border-radius: 6px;
-  padding: 0.5rem 1.2rem;
-  font-size: 1rem;
-  border: none;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn.export:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-}
-
-/* Layout */
 .user-page {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: auto;
-  padding: 1.5rem;
+  padding: 2rem;
   font-family: 'Inter', sans-serif;
-  background: #f3f4f6; /* Light gray background */
+  background: #f9fafb;
   min-height: 100vh;
 }
 .page-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-.page-header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
+  margin-bottom: 2rem;
 }
 .back-btn {
+  background: white;
   border: 1px solid #d1d5db;
-  padding: 7px 14px;
+  padding: 0.5rem 1rem;
   border-radius: 6px;
-  background: #f8fafc;
+  font-size: 0.95rem;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Controls */
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 2rem;
 }
 .search {
-  flex: 1 1 220px;
-  padding: 0.6rem 0.9rem;
+  flex: 1 1 250px;
+  padding: 0.7rem 1rem;
+  font-size: 1rem;
   border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border-radius: 8px;
+  background: #fff;
 }
 .sort {
-  padding: 0.6rem;
-  border-radius: 6px;
+  padding: 0.7rem 1rem;
+  font-size: 1rem;
+  border-radius: 8px;
   border: 1px solid #d1d5db;
-  background: white;
+  background: #fff;
 }
 
-/* Cards */
 .user-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
-  margin-top: 1rem;
+  gap: 1.5rem;
 }
 .user-card {
-  background: #eff6ff; /* Light blue background */
-  padding: 1rem;
-  border-radius: 10px;
+  background: #ffffff;
   border: 1px solid #e5e7eb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  display: flex;
-  flex-direction: column;
+  border-radius: 10px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s;
+}
+.user-card:hover {
+  transform: translateY(-4px);
 }
 .user-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 .user-name {
   font-weight: 600;
@@ -295,113 +271,130 @@ function openDeleteModal (u) {
   color: #111827;
 }
 .user-details p {
-  margin: 0.2rem 0;
+  margin: 0.3rem 0;
   font-size: 0.9rem;
   color: #374151;
 }
 
-/* Buttons & Tags */
 .actions {
   display: flex;
-  gap: 8px;
-  margin-top: 0.75rem;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }
 .btn.tiny {
-  padding: 4px 10px;
-  font-size: 0.75rem;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8rem;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
+  border-radius: 6px;
   font-weight: 500;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  transition: background 0.2s;
+  cursor: pointer;
 }
-.green { background: var(--c-green); color: #fff; }
-.green:hover { background: var(--c-green-hover); }
-.warn { background: var(--c-warn); color: #1f2937; }
-.warn:hover { background: var(--c-warn-hover); }
-.danger { background: var(--c-danger); color: #fff; }
-.danger:hover { background: var(--c-danger-hover); }
-
-.tag {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+.green {
+  background: var(--c-green);
   color: #fff;
 }
+.green:hover {
+  background: var(--c-green-hover);
+}
+.warn {
+  background: var(--c-warn);
+  color: #1f2937;
+}
+.warn:hover {
+  background: var(--c-warn-hover);
+}
+.danger {
+  background: var(--c-danger);
+  color: #fff;
+}
+.danger:hover {
+  background: var(--c-danger-hover);
+}
+
+.tag {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  color: #fff;
+  font-weight: 500;
+}
 .tag--active {
-  background: #9ca3af;
+  background: #10b981;
 }
 .tag--inactive {
-  background: var(--c-green);
+  background: #9ca3af;
+}
+
+.export-csv-bar {
+  text-align: right;
+  margin-top: 2rem;
+}
+.btn.export {
+  background: #2563eb;
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+}
+.btn.export:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .loading, .empty {
   text-align: center;
-  padding: 2.5rem 0;
+  padding: 2rem;
+  font-size: 1rem;
   color: #6b7280;
-  font-size: 0.95rem;
 }
 
-/* Modal */
-.modal {
-  border: none;
-  border-radius: 12px;
-  padding: 1.5rem;
-  width: 90%;
-  max-width: 420px;
-}
-.modal h3 {
-  margin: 0 0 0.75rem;
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-.mb {
-  margin-bottom: 1.25rem;
-  color: #374151;
-}
-.modal-btns {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-.modal .btn {
-  padding: 0.6rem 1.2rem;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  background: #e5e7eb;
-}
-.modal .danger {
-  background: var(--c-danger);
-  color: #fff;
-}
-.modal-backdrop::backdrop {
-  background: rgba(0, 0, 0, 0.45);
-}
-
-/* Toast */
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
 .toast {
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
   background: #334155;
   color: #fff;
-  padding: 0.75rem 1rem;
+  padding: 0.8rem 1.2rem;
   border-radius: 8px;
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.15);
+  font-size: 0.9rem;
+  z-index: 1000;
+}
+.toast.success {
+  background: var(--c-green);
 }
 .toast.error {
   background: var(--c-danger);
 }
-.toast.success {
-  background: var(--c-green);
+.actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+.btn.tiny {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn.tiny.green {
+  background-color: #4caf50;
+  color: white;
+}
+
+.btn.tiny.warn {
+  background-color: #ff9800;
+  color: white;
+}
+
+.btn.tiny.danger {
+  background-color: #f44336;
+  color: white;
 }
 </style>

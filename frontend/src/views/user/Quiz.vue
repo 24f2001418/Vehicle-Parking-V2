@@ -1,16 +1,14 @@
 <template>
   <main class="attempt-wrapper">
     <!-- Header with timer & progress bar -->
-    <header class="quiz-head" v-if="quiz">
+    <header class="quiz-head" v-if="quiz && questions.length">
       <h2>{{ quiz.title }}</h2>
-
       <div class="meta">
         <span class="timer" :class="{ urgent: remaining <= 15 }">
           ⏱ {{ prettyTime }}
         </span>
         <span>{{ current + 1 }} / {{ questions.length }}</span>
       </div>
-
       <!-- Progress bar -->
       <div class="progress-wrapper">
         <div class="bar">
@@ -22,34 +20,28 @@
 
     <!-- Loading -->
     <p v-if="loading" class="loading">Loading quiz…</p>
+    <p v-else-if="!questions.length" class="empty">No questions available for this quiz.</p>
 
     <!-- Question carousel -->
-    <section v-else-if="!finished" class="question-box">
+    <section v-else-if="!finished && questions.length" class="question-box">
       <h3 class="q-text">
         Q{{ current + 1 }}. {{ currentQ.question_statement }}
       </h3>
-
       <ul class="options">
         <li v-for="num in 4" :key="num">
-          <label :class="optionClass(num)">
+          <label>
             <input
               type="radio"
               :value="num"
               v-model="answers[currentQ.id]"
-              :disabled="locked(currentQ.id)"
+              :disabled="finished"
               @change="onSelect(currentQ.id, num)"
             />
             {{ currentQ['option' + num] }}
           </label>
         </li>
       </ul>
-
-      <!-- feedback -->
-      <p v-if="locked(currentQ.id)" class="feedback">
-        <span v-if="isCorrect(currentQ.id)">✔ Correct!</span>
-        <span v-else>✖ Wrong (correct: {{ currentQ['option' + currentQ.correct_option] }})</span>
-      </p>
-
+      <!-- feedback (hidden until submit) -->
       <!-- nav buttons -->
       <div class="nav">
         <button class="btn" @click="prev" :disabled="current === 0">Prev</button>
@@ -65,9 +57,20 @@
     </section>
 
     <!-- Result view -->
-    <section v-else class="result">
+    <section v-else-if="finished && questions.length" class="result">
       <h2>Your Score</h2>
       <p class="big">{{ score }} / {{ questions.length }}</p>
+      <div v-for="(q, idx) in questions" :key="q.id" class="review-row">
+        <div class="review-q">Q{{ idx+1 }}. {{ q.question_statement }}</div>
+        <div class="review-a">
+          <span :class="answers[q.id] === q.correct_option ? 'correct' : 'wrong'">
+            Your answer: {{ q['option'+answers[q.id]] || '—' }}
+          </span>
+          <span v-if="answers[q.id] !== q.correct_option" class="correct">
+            | Correct: {{ q['option'+q.correct_option] }}
+          </span>
+        </div>
+      </div>
       <button class="btn primary" @click="goHome">Back to dashboard</button>
     </section>
   </main>
@@ -91,6 +94,7 @@ const answers    = ref({})
 const current    = ref(0)
 const finished   = ref(false)
 const score      = ref(0)
+const showFeedback = ref(false) // not used anymore
 
 /* Timer */
 let tick
@@ -114,14 +118,15 @@ onBeforeUnmount(() => clearInterval(tick))
 async function loadQuiz() {
   try {
     const hdr = { Authorization: `Bearer ${localStorage.token}` }
-
     const { data: qData }  = await axios.get(`${API}/quizzes/${quizId}`, { headers: hdr })
     const { data: qsData } = await axios.get(`${API}/quizzes/${quizId}/questions`, { headers: hdr })
-
     quiz.value       = qData.quiz
     questions.value  = qsData.questions || []
+    if (!questions.value.length) {
+      loading.value = false
+      return
+    }
     remaining.value  = parseDuration(quiz.value.time_duration || '00:10')
-
     tick = setInterval(() => {
       if (--remaining.value <= 0) {
         clearInterval(tick)
@@ -143,19 +148,21 @@ const currentQ = computed(() => questions.value[current.value] || {})
 function locked(id)      { return id in answers.value }
 function isCorrect(id)   {
   const q = questions.value.find(x => x.id === id)
-  return answers.value[id] === q.correct_option
+  return answers.value[id] === q?.correct_option
 }
 function optionClass(num) {
-  const id = currentQ.value.id
-  if (!locked(id)) return ''
-  return num === answers.value[id]
-    ? (isCorrect(id) ? 'opt correct' : 'opt wrong')
-    : ''
+  // No color feedback before submit
+  return ''
 }
+const correctOptionText = computed(() => {
+  const q = currentQ.value
+  if (!q) return ''
+  return q['option' + q.correct_option]
+})
 
 /* Navigation */
-function next() { if (current.value < questions.value.length - 1) current.value++ }
-function prev() { if (current.value > 0) current.value-- }
+function next() { if (current.value < questions.value.length - 1) { current.value++; } }
+function prev() { if (current.value > 0) { current.value--; } }
 
 /* Selection */
 function onSelect(qid, option) {
@@ -166,12 +173,10 @@ function onSelect(qid, option) {
 async function submit() {
   if (finished.value) return
   clearInterval(tick)
-
   score.value = questions.value.reduce(
     (sum, q) => sum + (answers.value[q.id] === q.correct_option ? 1 : 0),
     0
   )
-
   try {
     const hdr = { Authorization: `Bearer ${localStorage.token}` }
     await axios.post(`${API}/quizzes/${quizId}/attempt`, { answers: answers.value }, { headers: hdr })
@@ -182,7 +187,7 @@ async function submit() {
   }
 }
 function goHome() {
-  router.push('/dashboard')
+  router.push('/user')
 }
 </script>
 
@@ -312,11 +317,39 @@ input[type="radio"] {
   margin: 0 0 2rem;
 }
 
+/* Review answers */
+.review-row {
+  margin: 1.2rem 0 0.7rem 0;
+  padding: 0.7rem 1rem;
+  background: #f8fafc;
+  border-radius: 7px;
+  font-size: 1.01rem;
+  box-shadow: 0 1px 2px #0001;
+}
+.review-q {
+  font-weight: 500;
+  margin-bottom: 0.2rem;
+}
+.review-a {
+  font-size: 0.98rem;
+}
+.review-a .correct {
+  color: #22c55e;
+  font-weight: 600;
+}
+.review-a .wrong {
+  color: #ef4444;
+  font-weight: 600;
+}
+
 /* Status text */
 .loading, .empty {
   text-align: center;
   padding: 2rem 0;
   font-size: 1rem;
   color: #64748b;
+}
+.options li label {
+  background: none !important;
 }
 </style>

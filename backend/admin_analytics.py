@@ -17,7 +17,7 @@ def admin_analytics():
         total_score = sum(s.total_score for s in scores)
         attempts = len(scores)
         avg_percent = (
-            sum((s.total_score / (s.max_score or 1)) * 100 if s.max_score else s.total_score for s in scores) / attempts
+            sum((s.total_score / (s.total_score or 1)) * 100 if s.total_score else s.total_score for s in scores) / attempts
             if attempts else 0
         )
         leaderboard.append({

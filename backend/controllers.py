@@ -9,7 +9,7 @@ from flask_jwt_extended import (
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
 import re
-
+from sqlalchemy.orm import joinedload
 from models import db, User, Subject, Chapter, Quiz, Question, Score
 
 # Import caching/rate-limiting decorators
@@ -236,30 +236,34 @@ class QuizResource(Resource):
             return {"msg": "Admin privileges required"}, 403
         q = Quiz.query.get_or_404(quiz_id)
         data = request.get_json() or {}
-        q.title         = data.get("title", q.title)
-        q.date_of_quiz  = data.get("date_of_quiz", q.date_of_quiz)
+        q.title = data.get("title", q.title)
+        # Robust ISO datetime parsing for start_time
+        def parse_dt(val):
+            if not val:
+                return None
+            if isinstance(val, str):
+                for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"):
+                    try:
+                        return datetime.strptime(val, fmt)
+                    except Exception:
+                        continue
+                raise ValueError("Invalid datetime format. Use YYYY-MM-DDTHH:MM[:SS]")
+            return val
+
+        if "start_time" in data:
+            try:
+                q.start_time = parse_dt(data["start_time"])
+            except Exception as e:
+                return {"msg": str(e)}, 400
+        if "end_time" in data:
+            try:
+                q.end_time = parse_dt(data["end_time"])
+            except Exception as e:
+                return {"msg": str(e)}, 400
         q.time_duration = data.get("time_duration", q.time_duration)
-        q.remarks       = data.get("remarks", q.remarks)
+        q.remarks = data.get("remarks", q.remarks)
         db.session.commit()
         return {"msg": "Quiz updated", "quiz": q.to_dict()}
-
-    @jwt_required()
-    def delete(self, quiz_id):
-        if not is_admin():
-            return {"msg": "Admin privileges required"}, 403
-        q = Quiz.query.get_or_404(quiz_id)
-        for score in q.scores:
-            db.session.delete(score)
-        for question in q.questions:
-            db.session.delete(question)
-        db.session.delete(q)
-        db.session.commit()
-        return {"msg": "Quiz deleted"}
-
-
-# ─────────────────────────────────────────────────────────────────── #
-#  Question CRUD (under a quiz)                                       #
-# ------------------------------------------------------------------- #
 class QuestionListResource(Resource):
     @jwt_required(optional=True)
     def get(self, quiz_id):
@@ -357,6 +361,7 @@ class AttemptQuizResource(Resource):
             user_id=user.id,
             total_score=total,
             attempted_at=now,
+            max_score=len(quiz.questions),
         )
         db.session.add(score)
         db.session.commit()
@@ -369,12 +374,26 @@ class ScoreListResource(Resource):
     def get(self):
         user_email = get_jwt_identity()
         user = User.query.filter_by(email=user_email).first_or_404()
+
         scores = (
-            Score.query.filter_by(user_id=user.id)
+            Score.query.options(joinedload(Score.quiz))
+            .filter_by(user_id=user.id)
             .order_by(Score.attempted_at.desc())
             .all()
         )
-        return {"scores": [s.to_dict() for s in scores]}, 200
+
+        result = []
+        for s in scores:
+            result.append({
+                "id": s.id,
+                "total_score": s.total_score,
+                "attempted_at": s.attempted_at.isoformat(),
+                "quiz_id": s.quiz.id if s.quiz else None,
+                "quiz_title": s.quiz.title if s.quiz else None,
+                "max_score": len(s.quiz.questions) if s.quiz and s.quiz.questions else 1
+            })
+
+        return {"scores": result}, 200
 
 
 # ─────────────────────────────────────────────────────────────────── #
@@ -446,8 +465,8 @@ class UserSearchQuizzesSubjectsAPI(Resource):
     @make_cache_key('usersearch', timeout=60)
     def get(self):
         q = request.args.get("q", "").strip()
-        if not q:
-            return {"quizzes": [], "subjects": []}
+        if not q or len(q) < 2:
+            return {"msg": "Query too short", "quizzes": [], "subjects": []}, 400
         quizzes = search_by_query(Quiz, Quiz.title, q)
         subjects = search_by_query(Subject, Subject.name, q)
         return {
@@ -467,8 +486,8 @@ class SearchChaptersAPI(Resource):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
         q = request.args.get("q", "").strip()
-        if not q:
-            return {"chapters": []}
+        if not q or len(q) < 2:
+            return {"msg": "Query too short", "chapters": []}, 400
         chapters = search_by_query(Chapter, Chapter.name, q)
         return {"chapters": [{"id": c.id, "name": c.name, "subject_id": c.subject_id} for c in chapters]}
 
@@ -481,8 +500,8 @@ class SearchUsersAPI(Resource):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
         q = request.args.get("q", "").strip()
-        if not q:
-            return {"users": []}
+        if not q or len(q) < 2:
+            return {"msg": "Query too short", "users": []}, 400
         users = search_by_query(User, User.full_name, q)
         return {"users": [{"id": u.id, "name": u.full_name, "email": u.email} for u in users]}
 
@@ -495,8 +514,8 @@ class SearchSubjectsAPI(Resource):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
         q = request.args.get("q", "").strip()
-        if not q:
-            return {"subjects": []}
+        if not q or len(q) < 2:
+            return {"msg": "Query too short", "subjects": []}, 400
         subjects = search_by_query(Subject, Subject.name, q)
         return {"subjects": [{"id": s.id, "name": s.name} for s in subjects]}
 
@@ -509,8 +528,8 @@ class SearchQuizzesAPI(Resource):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
         q = request.args.get("q", "").strip()
-        if not q:
-            return {"quizzes": []}
+        if not q or len(q) < 2:
+            return {"msg": "Query too short", "quizzes": []}, 400
         quizzes = search_by_query(Quiz, Quiz.title, q)
         return {"quizzes": [{"id": qz.id, "title": qz.title, "chapter_id": qz.chapter_id} for qz in quizzes]}
 
@@ -523,8 +542,8 @@ class SearchQuestionsAPI(Resource):
         if not is_admin():
             return {"msg": "Admin privileges required"}, 403
         q = request.args.get("q", "").strip()
-        if not q:
-            return {"questions": []}
+        if not q or len(q) < 2:
+            return {"msg": "Query too short", "questions": []}, 400
         questions = search_by_query(Question, Question.question_statement, q)
         return {"questions": [{"id": qs.id, "text": qs.question_statement, "quiz_id": qs.quiz_id} for qs in questions]}
 

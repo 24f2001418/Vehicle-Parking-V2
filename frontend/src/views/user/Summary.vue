@@ -1,19 +1,19 @@
 <template>
-  <main class="sum-wrapper">
+  <main class="summary-wrapper">
     <h1 class="title">Quiz Summary Report</h1>
 
     <!-- OVERALL STATS -->
-    <section v-if="!loading && rows.length" class="overall">
+    <section v-if="!loading && rows.length" class="summary-stats">
       <article class="stat"><h3>{{ rows.length }}</h3><p>Attempts</p></article>
       <article class="stat"><h3>{{ totalPoints }}</h3><p>Total Points</p></article>
-      <article class="stat"><h3>{{ avgPercent.toFixed(1) }}%</h3><p>Average %</p></article>
-      <article class="stat"><h3>{{ bestPercent.toFixed(1) }}%</h3><p>Best %</p></article>
+      <article class="stat"><h3>{{ avgPercent.toFixed(1) }}%</h3><p>Average Score</p></article>
+      <article class="stat"><h3>{{ bestPercent.toFixed(1) }}%</h3><p>Best Score</p></article>
     </section>
 
     <!-- CHARTS -->
-    <section v-if="!loading && rows.length" class="charts">
+    <section v-if="!loading && rows.length" class="chart-section">
       <div class="card chart-card">
-        <h3>Performance per Attempt</h3>
+        <h3>Performance Over Time</h3>
         <canvas ref="barRef"></canvas>
       </div>
 
@@ -24,28 +24,25 @@
     </section>
 
     <!-- LOADING -->
-    <p v-if="loading" class="loading">Loading summary…</p>
+    <p v-if="loading" class="loading">Loading summary...</p>
 
     <!-- DATA TABLE -->
     <div v-else class="card">
-      <div class="export-csv-bar">
+      <div class="export-controls">
         <button class="btn export" @click="exportUserCSV" :disabled="exporting">
-          {{ exporting ? 'Exporting...' : 'Download My Quiz History (CSV)' }}
+          {{ exporting ? 'Exporting...' : 'Download Quiz History (CSV)' }}
         </button>
       </div>
-      <p v-if="!rows.length" class="empty">No quiz data yet.</p>
-      <table v-else class="tbl">
+      <p v-if="!rows.length" class="no-data">No quiz data available.</p>
+      <table v-else class="data-table">
         <thead>
           <tr><th>Date</th><th>Quiz</th><th>Score</th><th>%</th></tr>
         </thead>
         <tbody>
           <tr v-for="r in rows" :key="r.id">
             <td>{{ fmtDate(r.attempted_at) }}</td>
-            <td>{{ r.quiz_title ?? `Quiz #${r.quiz_id}` }}</td>
-            <td>
-              {{ r.total_score }}
-              <template v-if="r.max_score">/ {{ r.max_score }}</template>
-            </td>
+            <td>{{ r.quiz_title ?? `Quiz  ${r.quiz_id}` }}</td>
+            <td>{{ r.total_score }}<template v-if="r.max_score">/ {{ r.max_score }}</template></td>
             <td>{{ percent(r).toFixed(1) }}%</td>
           </tr>
         </tbody>
@@ -76,9 +73,9 @@ const exportUserCSV = async () => {
     await axios.post(`${API}/export/user-csv`, {}, {
       headers: { Authorization: `Bearer ${localStorage.token}` }
     })
-    alert('Export started! Check your email soon.')
+    alert('Export initiated. Check your email shortly.')
   } catch (e) {
-    alert('Failed to start export')
+    alert('Export failed. Please try again later.')
   } finally {
     exporting.value = false
   }
@@ -103,30 +100,29 @@ onBeforeUnmount(() => {
   pieChart?.destroy()
 })
 
-const fmtDate = iso =>
-  new Date(iso).toLocaleDateString(undefined, { dateStyle: 'medium' })
+const fmtDate = iso => new Date(iso).toLocaleDateString(undefined, { dateStyle: 'medium' })
 
-const percent = r =>
-  r.max_score ? (r.total_score / r.max_score) * 100 : r.total_score
+const percent = r => {
+  if (!r.max_score || r.max_score === 0) return 0
+  return (r.total_score / r.max_score) * 100
+}
 
-const totalPoints = computed(() =>
-  rows.value.reduce((sum, r) => sum + r.total_score, 0)
-)
+const totalPoints = computed(() => rows.value.reduce((sum, r) => sum + r.total_score, 0))
+const avgPercent = computed(() => rows.value.length ? rows.value.reduce((sum, r) => sum + percent(r), 0) / rows.value.length : 0)
+const bestPercent = computed(() => rows.value.reduce((max, r) => Math.max(max, percent(r)), 0))
 
-const avgPercent = computed(() =>
-  rows.value.length
-    ? rows.value.reduce((sum, r) => sum + percent(r), 0) / rows.value.length
-    : 0
-)
-
-const bestPercent = computed(() =>
-  rows.value.reduce((max, r) => Math.max(max, percent(r)), 0)
-)
-
+if (barChart) {
+  barChart.destroy()
+  barChart = null
+}
+if (pieChart) {
+  pieChart.destroy()
+  pieChart = null
+}
 function initCharts () {
-  const sortedRows = [...rows.value].sort((a, b) => new Date(a.attempted_at) - new Date(b.attempted_at))
-  const labels = sortedRows.map(r => fmtDate(r.attempted_at))
-  const dataP  = sortedRows.map(r => +percent(r).toFixed(1))
+  const sorted = [...rows.value].sort((a, b) => new Date(a.attempted_at) - new Date(b.attempted_at))
+  const labels = sorted.map(r => fmtDate(r.attempted_at))
+  const dataP  = sorted.map(r => +percent(r).toFixed(1))
 
   barChart = new Chart(barRef.value, {
     type: 'bar',
@@ -159,122 +155,125 @@ function initCharts () {
         backgroundColor: ['#f87171', '#fbbf24', '#34d399', '#3b82f6']
       }]
     },
-    options: {
-      responsive: true
-    }
+    options: { responsive: true }
   })
 }
 </script>
 
 <style scoped>
-/* Export CSV */
-.export-csv-bar {
-  margin: 1.5rem 0 1rem 0;
-  text-align: right;
-}
-.btn.export {
-  background: #2563eb;
-  color: #fff;
-  border-radius: 6px;
-  padding: 0.5rem 1.2rem;
-  font-size: 1rem;
-  border: none;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn.export:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-/* layout */
-.sum-wrapper {
+.summary-wrapper {
   max-width: 960px;
   margin: auto;
   padding: 2rem 1.25rem;
   font-family: 'Inter', sans-serif;
 }
 .title {
-  font-size: 1.6rem;
+  font-size: 1.8rem;
   font-weight: 700;
-  margin: 0 0 1.4rem;
+  margin-bottom: 1.5rem;
   color: #1e293b;
+  text-align: center;
 }
-
-/* stats bar */
-.overall {
+.summary-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 1rem;
-  margin-bottom: 1.2rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
 }
 .stat {
   background: #f1f5f9;
   border-radius: 10px;
   padding: 1rem;
-  text-align: center;
 }
 .stat h3 {
-  margin: 0;
-  font-size: 1.55rem;
+  font-size: 1.6rem;
   color: #2563eb;
+  margin: 0;
 }
 .stat p {
-  margin: .25rem 0 0;
-  font-size: .9rem;
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
   color: #475569;
 }
-
-/* chart cards */
-.charts {
+.chart-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.2rem;
-  margin-bottom: 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 .chart-card {
   padding: 1rem;
 }
 .chart-card h3 {
-  margin: 0 0 .75rem;
-  font-size: 1.05rem;
-  color: #1f2937;
   text-align: center;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: #1f2937;
 }
 canvas {
   width: 100% !important;
   max-height: 280px;
 }
-
-/* table */
-.card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, .05);
-  padding: 1rem;
+.export-controls {
+  text-align: right;
+  margin: 1.5rem 0 1rem;
 }
-.tbl {
+.btn.export {
+  background: linear-gradient(90deg, #2563eb 60%, #1e40af 100%);
+  color: white;
+  border: none;
+  padding: 0.55rem 1.3rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.btn.export:hover:not(:disabled) {
+  background: linear-gradient(90deg, #1e40af 60%, #2563eb 100%);
+  box-shadow: 0 4px 16px rgba(37,99,235,0.13);
+}
+.btn.export:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: .9rem;
+  font-size: 0.95rem;
 }
-.tbl th, .tbl td {
-  padding: .65rem .8rem;
-  border-bottom: 1px solid #f8fafc;
+.data-table th, .data-table td {
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid #f1f5f9;
 }
-.tbl th {
-  background: #f9fafb;
+.data-table th {
+  background-color: #f9fafb;
   text-align: left;
 }
-.tbl tr:nth-child(even) {
-  background: #fafafa04;
+.data-table tr:nth-child(even) {
+  background-color: #fafafa;
 }
-
-.loading, .empty {
+.loading, .no-data {
   text-align: center;
-  padding: 2rem 0;
-  color: #64748b;
   font-size: 1rem;
+  color: #64748b;
+  padding: 2rem 0;
+}
+@media (max-width: 600px) {
+  .summary-wrapper {
+    padding: 1rem 0.5rem;
+  }
+  .summary-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  .chart-section {
+    grid-template-columns: 1fr;
+  }
+  .data-table th, .data-table td {
+    padding: 0.4rem 0.3rem;
+    font-size: 0.9rem;
+  }
 }
 </style>

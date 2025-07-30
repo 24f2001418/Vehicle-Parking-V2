@@ -146,9 +146,13 @@ class Score(db.Model):
     user_id   = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     attempted_at = db.Column(db.DateTime, default=datetime.utcnow)
     total_score  = db.Column(db.Integer, nullable=False)
+    max_score    = db.Column(db.Integer, nullable=False) 
     remarks      = db.Column(db.String(255))
 
     def to_dict(self):
+        # Attach quiz_title and max_score for analytics
+        quiz_title = self.quiz.title if self.quiz else None
+        max_score = len(self.quiz.questions) if self.quiz and self.quiz.questions else None
         return {
             "id": self.id,
             "quiz_id": self.quiz_id,
@@ -156,4 +160,6 @@ class Score(db.Model):
             "attempted_at": self.attempted_at.isoformat(),
             "total_score": self.total_score,
             "remarks": self.remarks,
+            "quiz_title": quiz_title,
+            "max_score": max_score,
         }

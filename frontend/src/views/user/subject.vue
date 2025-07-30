@@ -19,11 +19,23 @@
       <p v-else class="empty">No subjects found.</p>
     </section>
 
-    <!-- Quizzes -->
-    <section v-else class="quiz-list" v-show="!loading">
+    <!-- Chapters -->
+    <section v-else-if="selected && !selectedChapter" class="chapter-list" v-show="!loading">
       <button class="back-btn" @click="reset">← Back to subjects</button>
-      <h2 class="title">{{ selected.name }} – Quizzes</h2>
+      <h2 class="title">{{ selected.name }} – Chapters</h2>
+      <div v-if="chapters.length" class="grid">
+        <div v-for="ch in chapters" :key="ch.id" class="card" @click="selectChapter(ch)">
+          <h3>{{ ch.name }}</h3>
+          <p>{{ ch.description || '— No description —' }}</p>
+        </div>
+      </div>
+      <p v-else class="empty">No chapters found for this subject.</p>
+    </section>
 
+    <!-- Quizzes -->
+    <section v-else-if="selected && selectedChapter" class="quiz-list" v-show="!loading">
+      <button class="back-btn" @click="resetChapter">← Back to chapters</button>
+      <h2 class="title">{{ selectedChapter.name }} – Quizzes</h2>
       <div v-if="quizzes.length" class="grid">
         <div v-for="q in quizzes" :key="q.id" class="card card-quiz">
           <h3>{{ q.title }}</h3>
@@ -41,8 +53,7 @@
           </button>
         </div>
       </div>
-
-      <p v-else class="empty">No quizzes under this subject.</p>
+      <p v-else class="empty">No quizzes under this chapter.</p>
     </section>
 
     <div v-if="loading" class="loading">Loading…</div>
@@ -61,7 +72,9 @@ const hdr = () => ({ Authorization: `Bearer ${localStorage.token}` })
 const loading = ref(true)
 const subjects = ref([])
 const selected = ref(null)
+const chapters = ref([])
 const quizzes = ref([])
+const selectedChapter = ref(null)
 
 onMounted(loadSubjects)
 
@@ -79,27 +92,33 @@ async function loadSubjects() {
 
 async function selectSubject(subj) {
   selected.value = subj
+  selectedChapter.value = null
+  chapters.value = []
   quizzes.value = []
   loading.value = true
-
   try {
     const { data: chData } = await axios.get(
       `${API}/subjects/${subj.id}/chapters`,
       { headers: hdr() }
     )
-    const chapters = chData.chapters || []
+    chapters.value = chData.chapters || []
+  } catch (err) {
+    console.error('Failed to load chapters:', err)
+  } finally {
+    loading.value = false
+  }
+}
 
-    const quizPromises = chapters.map(c =>
-      axios
-        .get(`${API}/chapters/${c.id}/quizzes`, { headers: hdr() })
-        .then(r => r.data.quizzes || [])
+async function selectChapter(ch) {
+  selectedChapter.value = ch
+  quizzes.value = []
+  loading.value = true
+  try {
+    const { data } = await axios.get(
+      `${API}/chapters/${ch.id}/quizzes`,
+      { headers: hdr() }
     )
-
-    const allQuizzes = (await Promise.all(quizPromises)).flat()
-
-    quizzes.value = allQuizzes.sort((a, b) =>
-      new Date(a.start_time) - new Date(b.start_time)
-    )
+    quizzes.value = (data.quizzes || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
   } catch (err) {
     console.error('Failed to load quizzes:', err)
   } finally {
@@ -109,6 +128,13 @@ async function selectSubject(subj) {
 
 function reset() {
   selected.value = null
+  selectedChapter.value = null
+  chapters.value = []
+  quizzes.value = []
+}
+
+function resetChapter() {
+  selectedChapter.value = null
   quizzes.value = []
 }
 

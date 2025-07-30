@@ -77,12 +77,23 @@
            :editing="!!editingQuestion"
            @close="closeQuestion"
            @save="saveQuestion">
-      <textarea v-model.trim="questionForm.question_statement" rows="3" required />
-      <input v-for="n in 4" :key="n" v-model.trim="questionForm['option'+n]"
-             :placeholder="'Option '+n" required />
-      <input type="number" min="1" max="4"
-             v-model.number="questionForm.correct_option"
-             placeholder="Correct (1‑4)" required />
+      <div class="question-form">
+        <label class="q-label">Question Statement</label>
+        <textarea v-model.trim="questionForm.question_statement" rows="3" required class="q-input" placeholder="Enter the question..." />
+
+        <div class="q-options">
+          <label class="q-label">Options</label>
+          <div class="q-option-row" v-for="n in 4" :key="n">
+            <span class="q-option-num">{{ n }}.</span>
+            <input v-model.trim="questionForm['option'+n]" class="q-input" :placeholder="'Option '+n" required />
+          </div>
+        </div>
+
+        <div class="q-correct-row">
+          <label class="q-label">Correct Option (1-4)</label>
+          <input type="number" min="1" max="4" v-model.number="questionForm.correct_option" class="q-input short" required />
+        </div>
+      </div>
     </Modal>
   </div>
 </template>
@@ -355,5 +366,53 @@ async function deleteQuestion(que){
 .tiny.danger {
   background: #dc2626;
   color: #fff;
+}
+
+/* ───── Question Modal UI/UX ───── */
+.question-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+}
+.q-label {
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #2563eb;
+  font-size: 15px;
+}
+.q-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 15px;
+  background: #f9fafb;
+  margin-bottom: 0;
+}
+.q-input.short {
+  width: 90px;
+  display: inline-block;
+}
+.q-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.q-option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.q-option-num {
+  font-weight: 600;
+  color: #1e40af;
+  width: 18px;
+  text-align: right;
+}
+.q-correct-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 </style>
