@@ -1,165 +1,98 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
-
+# ------------------------------------------------------------------- #
+#  Users
+# ------------------------------------------------------------------- #
 class User(db.Model):
-    __tablename__ = 'user'
+    id       = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name     = db.Column(db.String(80),  nullable=False)
+    email    = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)      # store HASH!
+    role     = db.Column(db.String(50),  default='user', nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
 
-    id        = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    full_name = db.Column(db.String(100), nullable=False)
-    email     = db.Column(db.String(120), unique=True, nullable=False)
-    password  = db.Column(db.String(200), nullable=False)   # store the HASH!
-    qualification = db.Column(db.String(120), )  
-    dob       = db.Column(db.Date, ) 
-    role      = db.Column(db.String(20), default='user', nullable=False) 
-    is_active   = db.Column(db.Boolean, default=True) # 'admin' | 'user'
-
-    scores = db.relationship('Score', backref='user', lazy=True)
+    reservations = db.relationship('Reservation', backref='user', lazy=True)
 
     def to_dict(self):
         return {
-            "id": self.id,
-            "full_name": self.full_name,
-            "email": self.email,
-            "qualification": self.qualification,
-            "dob": self.dob.isoformat() if self.dob else None,
-            "role": self.role,
+            'id':   self.id,
+            'name': self.name,
+            'email': self.email,
+            'role': self.role,
+            'is_active': self.is_active
         }
 
+# ------------------------------------------------------------------- #
+#  Parking lots
+# ------------------------------------------------------------------- #
+class ParkingLot(db.Model):
+    id               = db.Column(db.Integer, primary_key=True)
+    name             = db.Column(db.String(100), nullable=False)        # “prime_location_name”
+    price            = db.Column(db.Float, nullable=False)              # per-hour price
+    address          = db.Column(db.String(255))
+    pin_code         = db.Column(db.String(10))
+    number_of_spots  = db.Column(db.Integer, nullable=False)
 
-class Subject(db.Model):
-    __tablename__ = 'subject'
-
-    id          = db.Column(db.Integer, primary_key=True)
-    name        = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-
-    chapters = db.relationship(
-        'Chapter',
-        backref='subject',
+    spots = db.relationship(
+        'ParkingSpot',
+        backref='lot',
         cascade='all, delete-orphan',
         lazy=True
     )
 
     def to_dict(self):
         return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
+            'id': self.id,
+            'name': self.name,
+            'price': self.price,
+            'address': self.address,
+            'pin_code': self.pin_code,
+            'number_of_spots': self.number_of_spots
         }
 
+# ------------------------------------------------------------------- #
+#  Individual parking spots
+# ------------------------------------------------------------------- #
+class ParkingSpot(db.Model):
+    id     = db.Column(db.Integer, primary_key=True)
+    lot_id = db.Column(db.Integer, db.ForeignKey('parking_lot.id'), nullable=False)
+    number = db.Column(db.Integer, nullable=False)            # 1…N inside the lot
+    status = db.Column(db.String(1), default='A')             # A=Available, O=Occupied
 
-class Chapter(db.Model):
-    __tablename__ = 'chapter'
-
-    id          = db.Column(db.Integer, primary_key=True)
-    subject_id  = db.Column(db.Integer, db.ForeignKey('subject.id', ondelete='CASCADE'), nullable=False)
-    name        = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-
-    quizzes = db.relationship(
-        'Quiz',
-        backref='chapter',
-        cascade='all, delete-orphan',
-        lazy=True
-    )
+    reservations = db.relationship('Reservation', backref='spot', lazy=True)
 
     def to_dict(self):
         return {
-            "id": self.id,
-            "subject_id": self.subject_id,
-            "name": self.name,
-            "description": self.description,
+            'id': self.id,
+            'lot_id': self.lot_id,
+            'number': self.number,
+            'status': self.status
         }
 
-class Quiz(db.Model):
-    __tablename__ = 'quiz'
-
+# ------------------------------------------------------------------- #
+#  Reservations
+# ------------------------------------------------------------------- #
+class Reservation(db.Model):
     id            = db.Column(db.Integer, primary_key=True)
-    chapter_id    = db.Column(db.Integer, db.ForeignKey('chapter.id', ondelete='CASCADE'), nullable=False)
-    title         = db.Column(db.String(150))
-    start_time    = db.Column(db.DateTime, nullable=False)  # NEW
-    end_time      = db.Column(db.DateTime, nullable=False)  # NEW
-    time_duration = db.Column(db.String(8))  # format HH:MM
-    remarks       = db.Column(db.Text)
-
-    questions = db.relationship(
-        'Question',
-        backref='quiz',
-        cascade='all, delete-orphan',
-        lazy=True
-    )
-    scores = db.relationship(
-        'Score',
-        backref='quiz',
-        cascade='all, delete-orphan',
-        lazy=True
-    )
+    spot_id       = db.Column(db.Integer, db.ForeignKey('parking_spot.id'), nullable=False)
+    user_id       = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name         = db.Column(db.String(80), nullable=False)  # reserved by user
+    vehicle_plate = db.Column(db.String(20), nullable=True)
+    parked_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    left_at       = db.Column(db.DateTime, nullable=True)
+    cost          = db.Column(db.Float, nullable=True)
+    remarks       = db.Column(db.String(255), nullable=True)
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "chapter_id": self.chapter_id,
-            "title": self.title,
-            "start_time": self.start_time.isoformat() if self.start_time else None,
-            "end_time": self.end_time.isoformat() if self.end_time else None,
-            "time_duration": self.time_duration,
-            "remarks": self.remarks,
-        }
-
-    def is_active(self):
-        now = datetime.utcnow()
-        return self.start_time <= now <= self.end_time
-
-
-class Question(db.Model):
-    __tablename__ = 'question'
-
-    id                 = db.Column(db.Integer, primary_key=True)
-    quiz_id            = db.Column(db.Integer, db.ForeignKey('quiz.id', ondelete='CASCADE'), nullable=False)
-    question_statement = db.Column(db.Text, nullable=False)
-    option1            = db.Column(db.String(250))
-    option2            = db.Column(db.String(250))
-    option3            = db.Column(db.String(250))
-    option4            = db.Column(db.String(250))
-    correct_option     = db.Column(db.Integer)  
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "quiz_id": self.quiz_id,
-            "question_statement": self.question_statement,
-            "option1": self.option1,
-            "option2": self.option2,
-            "option3": self.option3,
-            "option4": self.option4,
-            "correct_option": self.correct_option,
-        }
-
-class Score(db.Model):
-    __tablename__ = 'score'
-
-    id        = db.Column(db.Integer, primary_key=True)
-    quiz_id   = db.Column(db.Integer, db.ForeignKey('quiz.id', ondelete='CASCADE'), nullable=False)
-    user_id   = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
-    attempted_at = db.Column(db.DateTime, default=datetime.utcnow)
-    total_score  = db.Column(db.Integer, nullable=False)
-    max_score    = db.Column(db.Integer, nullable=False) 
-    remarks      = db.Column(db.String(255))
-
-    def to_dict(self):
-        # Attach quiz_title and max_score for analytics
-        quiz_title = self.quiz.title if self.quiz else None
-        max_score = len(self.quiz.questions) if self.quiz and self.quiz.questions else None
-        return {
-            "id": self.id,
-            "quiz_id": self.quiz_id,
-            "user_id": self.user_id,
-            "attempted_at": self.attempted_at.isoformat(),
-            "total_score": self.total_score,
-            "remarks": self.remarks,
-            "quiz_title": quiz_title,
-            "max_score": max_score,
-        }
+     return {
+        "id": self.id,
+        "spot_number": self.spot.number if self.spot else None,
+        "lot_name": self.spot.lot.name if self.spot and self.spot.lot else None,
+        "lot_address": self.spot.lot.address if self.spot and self.spot.lot else None,
+        "parked_at": self.parked_at.isoformat() if self.parked_at else None,
+        "left_at": self.left_at.isoformat() if self.left_at else None,
+        "cost": self.cost,
+    }

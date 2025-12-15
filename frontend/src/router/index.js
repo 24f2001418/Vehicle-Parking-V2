@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import LoginView from '@/views/LoginView.vue'
+import RegisterView from '@/views/RegisterView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,53 +14,53 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: () => import('../views/Login.vue'),
+      component: LoginView,
     },
     {
       path: '/register',
       name: 'register',
-      component: () => import('../views/Register.vue'),
+      component: RegisterView
     },
     {
       path: '/admin',
-      name: 'admin',
-      component: () => import('../views/admin/Home.vue'),
+      name: 'admin_home',
+      component: () => import('@/views/admin/HomeView.vue') 
     },
     {
-     path: '/admin/subject',
-     name: 'admin-subject',
-     component: () => import('../views/admin/Subject.vue')
+      path: '/user',
+      name: 'user_home',
+      component: () => import('@/views/user/HomeView.vue') 
     },
-   {
-    path: '/chapters/:chapterId/quizzes',
-    component: () => import('../views/admin/Quiz.vue'),
-    props: true
-   },
-   {
-     path: '/admin/users',
-     name: 'admin-users',
-     component: () => import('../views/admin/User.vue')
+    {
+      path: '/admin/lots',
+      name: 'lots',
+      component: () => import('@/views/admin/Lots.vue') 
     },
-    { path: '/user', 
-      component: () => import('../views/user/home.vue')
-     },
-     { path: '/user/subject', 
-      component: () => import('../views/user/subject.vue')
-     },
-     {
-      path: '/quiz/:id',
-      component: () => import('../views/user/Quiz.vue'),
-      props: true
+    {
+      path: '/admin/spots',
+      name: 'spots',
+      component: () => import('@/views/admin/Spots.vue') 
     },
-    {path: '/score', 
-      component: () => import('../views/user/Score.vue')
-     },
-     { path: '/Summary', 
-       component: () => import('../views/user/Summary.vue')
-     },
-     { path: '/admin/summary', 
-       component: () => import('../views/admin/Summary.vue')
-     },
+    {
+      path: '/admin/Users',
+      name: 'Users',
+      component: () => import('@/views/admin/Users.vue') 
+    },
+    {
+      path: '/admin/Summary',
+      name: 'Summary',
+      component: () => import('@/views/admin/Summary.vue') 
+    },
+    {
+      path: '/parking',
+      name: 'parking',
+      component: () => import('@/views/user/Parking.vue') 
+    },
+        {
+      path: '/history',
+      name: 'history',
+      component: () => import('@/views/user/History.vue') 
+    },
   ],
 })
 

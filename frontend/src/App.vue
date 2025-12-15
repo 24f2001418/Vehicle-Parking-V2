@@ -1,15 +1,16 @@
-
 <script setup>
-import { RouterView } from 'vue-router'
-import AppNavbar from './components/AppNavbar.vue'
+import { RouterLink, RouterView } from 'vue-router'
+import Navbar from './components/navbar.vue'
+import { authStore } from './store'
+
+// Initialize auth state on app mount
+authStore.initFromLocalStorage()
 </script>
 
-
 <template>
-  <AppNavbar />
+  <Navbar />
   <RouterView />
 </template>
 
 <style scoped>
-
 </style>
